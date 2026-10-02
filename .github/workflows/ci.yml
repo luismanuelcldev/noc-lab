@@ -1,0 +1,100 @@
+# ===========================================================================
+#  Integracion continua. Los pasos detallan que ejecuta `make ci` en vez de llamar a
+#  make: si la CI llamara a make, un error de sintaxis en el Makefile seria un fallo de
+#  CI mezclado con un fallo de codigo real. Ninguno necesita el stack en marcha: una CI
+#  que levanta nueve contenedores para comprobar que la documentacion esta bien es una
+#  CI que falla por su propia complejidad. El compose se valida en compose.yml.
+# ===========================================================================
+name: ci
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+# Cancela una ejecucion anterior del mismo ref cuando llega otra mas nueva: dos
+# commits seguidos no necesitan dos esperas.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validacion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Solo por la sintaxis del compose, que exige la variable con ${VAR:?mensaje}. La
+    # necesita igual scripts/check.py, que tambien ejecuta `docker compose config`.
+    env:
+      GF_SECURITY_ADMIN_PASSWORD: checking-only-not-a-secret
+
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # El puente no tiene dependencias, solo biblioteca estandar, asi que no hay nada
+      # que instalar. ruff queda fijado a la version del hook de pre-commit, que es lo
+      # que hace que este check y el local sean el mismo check.
+      - name: Instalar ruff
+        run: pip install ruff==0.8.4
+
+      # La version de promtool tiene que coincidir con la de Prometheus, de ahi la misma
+      # imagen fijada que en el compose y no una etiqueta "latest" que cambiaria sin avisar.
+      - name: Comprobar la sintaxis de las reglas
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD:/w:ro" -w /w prom/prometheus:v3.15.0 \
+            check rules rules/*.rules.yml
+
+      - name: Ejecutar los casos de regresion de reglas
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD:/w:ro" -w /w prom/prometheus:v3.15.0 \
+            test rules test/*.test.yml
+
+      # amtool valida el enrutado de Alertmanager: que las rutas apunten a receivers que
+      # existen y que las inhibiciones sean coherentes. Sin esto un error no se ve.
+      - name: Validar el enrutado de Alertmanager
+        run: |
+          docker run --rm --entrypoint amtool \
+            -v "$PWD:/w:ro" -w /w prom/alertmanager:v0.34.1 \
+            check-config alertmanager.yml
+
+      - name: Ejecutar las pruebas del puente
+        run: python -m unittest discover -s ntfy-bridge -q
+
+      - name: Analisis estatico
+        run: ruff check .
+
+      - name: Formato
+        run: ruff format --check .
+
+      # Van al final a proposito: si el analisis estatico falla, no tiene sentido continuar.
+      # --strict convierte todo aviso en fallo: el unico posible es un panel vacio fuera de la lista.
+      - name: Validadores del repositorio
+        run: python scripts/check.py --strict
+
+      # Comprobar que .env no existe vale casi nada: esta en .gitignore, asi que nunca
+      # aparece en una copia de la CI. Lo que si vale es escanear lo que esta versionado.
+      - name: Buscar secretos con gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Avisar de datos de ejecucion en el arbol
+        run: |
+          if [ -d data ]; then
+            echo "WARNING: data/ existe y no deberia acabar en un commit. El .gitignore"
+            echo "lo cubre, asi que sea un volumen montado antes de que existiera la regla."
+          else
+            echo "OK: no hay datos de ejecucion en el arbol."
+          fi

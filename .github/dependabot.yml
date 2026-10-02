@@ -1,0 +1,82 @@
+# ===========================================================================
+#  Actualizaciones de dependencias
+# ===========================================================================
+#  Las versiones se fijan exactas a proposito: el momento en que acaba un despliegue
+#  no es el momento de enterarse de que una version mayor cambio un comportamiento.
+#  Dependabot abre el cambio de version, la CI lo comprueba y la decision de
+#  aceptarlo es de quien lee el cambio.
+#
+#  Tres ecosistemas distintos, con politicas distintas:
+#  - Las imagenes de Docker se fijan por etiqueta y por digest. Esto es lo mas
+#    importante de este repositorio: un "latest" que se mueve solo
+#    hace cambiar el comportamiento sin que nadie lo decida.
+#  - Las dependencias de Python usan versiones exactas.
+#  - Las acciones de la CI siguen una etiqueta mayor, que es lo habitual.
+# ===========================================================================
+version: 2
+
+updates:
+  # Imagenes de los servicios del stack. Lo que mas importa es la agrupacion:
+  # cada entrada es hoy una version que no se mueve sola.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencias
+      - docker
+    commit-message:
+      prefix: "docker"
+    groups:
+      # Prometheus, Alertmanager y node-exporter vienen del mismo proyecto y
+      # suelen salir juntos. Agruparlos evita abrir tres cambios que
+      # hay que revisar en bloque.
+      prometheus:
+        patterns:
+          - "prom/prometheus"
+          - "prom/alertmanager"
+          - "prom/node-exporter"
+          - "prom/blackbox-exporter"
+      grafana:
+        patterns:
+          - "grafana/grafana"
+      # ntfy y cAdvisor no son del proyecto, pero tampoco forman parte del
+      # ecosistema de Prometheus, asi que conviene revisarlos aparte: ntfy
+      # publica a menudo y cAdvisor va por detras de la version de Kubernetes.
+      otros:
+        patterns:
+          - "binwiederhier/ntfy"
+          - "gcr.io/cadvisor/cadvisor"
+          - "nginx"
+
+    # mi-noc/ntfy-bridge se deja sin grupo a proposito: la imagen se construye desde
+    # ./ntfy-bridge con su propio Dockerfile, no se tira de un registro
+    # y no hay version que seguir. Lo que si se actualiza son sus dependencias
+    # de Python, en el bloque de pip de mas abajo.
+
+  - package-ecosystem: pip
+    directories:
+      - /ntfy-bridge
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencias
+      - python
+    commit-message:
+      prefix: "python"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels:
+      - dependencias
+      - ci
+    commit-message:
+      prefix: "ci"
