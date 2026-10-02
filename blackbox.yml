@@ -1,0 +1,95 @@
+# ===========================================================================
+#  BLACKBOX EXPORTER - modulos de sonda
+# ===========================================================================
+#  Cada modulo define COMO se sondea algo. Prometheus decide QUE se sondea con
+#  el parametro "module" de cada trabajo (ver scrape/sondas.yml).
+#  Validar:  docker compose exec blackbox-exporter wget -qO- localhost:9115/config
+# ===========================================================================
+
+modules:
+
+  # -------------------------------------------------------------------------
+  # http_canary - sonda HTTP con verificacion de contenido
+  # -------------------------------------------------------------------------
+  # La mas valiosa de las tres, y la que casi nadie configura. Una sonda que solo
+  # mira "devuelve 200" no basta: una pagina de mantenimiento devuelve 200, un
+  # balanceador puede devolver el portal cautivo, y una app con la base de datos
+  # caida suele seguir devolviendo 200 con el cuerpo vacio.
+  # fail_if_body_not_matches_regexp la convierte en una comprobacion de negocio
+  # de verdad: el puerto responde Y el contenido es el esperado.
+  http_canary:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200]        # cualquier otro codigo => probe_success = 0
+      follow_redirects: true
+      preferred_ip_protocol: ip4        # evita IPv6 donde no hay ruta IPv6
+      ip_protocol_fallback: true
+      headers:
+        User-Agent: "mi-noc-blackbox/1.0 (laboratorio de observabilidad)"
+      body_size_limit: 64KB             # techo: un cuerpo enorme no aporta nada
+      fail_if_body_not_matches_regexp:
+        - "noc-canary-ok"              # texto que DEBE aparecer en la respuesta
+
+  # -------------------------------------------------------------------------
+  # http_2xx - sonda HTTP basica
+  # -------------------------------------------------------------------------
+  # Solo el codigo de estado. Mas simple y con menos falsos positivos: la opcion
+  # correcta cuando el contenido es dinamico y no se le puede anclar texto estable.
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: []
+      follow_redirects: true
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: true
+
+  # -------------------------------------------------------------------------
+  # tcp_connect - sonda de capa 4
+  # -------------------------------------------------------------------------
+  # Responde solo a "el puerto acepta conexiones?", nada sobre la app. Es la
+  # PRIMERA comprobacion de un diagnostico: si TCP falla no hay nada por encima
+  # que mirar; si TCP pasa y HTTP falla, el problema es la capa de la app.
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: true
+
+  # -------------------------------------------------------------------------
+  # dns - resolucion de nombres
+  # -------------------------------------------------------------------------
+  # En produccion el DNS es un punto de fallo frecuente y de impacto amplio, asi
+  # que se merece su propia sonda.
+  dns:
+    prober: dns
+    timeout: 5s
+    dns:
+      # El nombre consultado es obligatorio y el campo es "query_name", no "query".
+      # Si falta, blackbox_exporter aborta en el arranque y no exporta nada. Un
+      # nombre de campo obsoleto no llega con un aviso legible, sino con:
+      #   field query not found in type config.plain
+      # El esquema de este modulo ha cambiado varias veces, asi que comprueba la
+      # forma exacta contra la documentacion de la version en uso.
+      query_name: demo-app              # interna: no sale a Internet
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: true
+      transport_protocol: "udp"
+      recursion_desired: true
+      valid_rcodes: ["NOERROR"]
+      # Para comprobar ADEMAS que la IP resuelta es la correcta. Desde v0.28.0
+      # son listas de reglas, no el antiguo "preferred_rr". Un ejemplo:
+      #   validate_answer_rrs:
+      #     fail_if_none_matches_regexp: ["10\\.20\\.30\\.40"]
+  #
+  # Este modulo existe pero NO se sondea en el lab. Para activarlo hace falta un
+  # job con "module: [dns]" en scrape/sondas.yml Y anadir "blackbox-dns" a la
+  # lista de jobs de la alerta TargetCaido en rules/metaservicio.rules.yml: ese
+  # segundo paso es el que se olvida, y sin el un fallo de DNS no genera alerta
+  # alguna porque up sigue siendo 1.

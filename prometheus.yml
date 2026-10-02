@@ -1,0 +1,60 @@
+# ===========================================================================
+#  PROMETHEUS - configuracion principal
+# ===========================================================================
+#  Validar:  promtool check config prometheus.yml
+#
+#  Los trabajos de scrape no estan aqui. Prometheus los lee de scrape/*.yml
+#  (scrape_config_files), uno por dominio, para que este fichero siga siendo lo
+#  bastante corto para leerse de un vistazo y cada trabajo este junto al razonamiento que hay detras.
+# ===========================================================================
+
+global:
+  # 15s es el valor por defecto recomendado oficialmente: por debajo, la cardinalidad y la carga
+  # suben sin comprarle a un NOC resolucion temporal util.
+  scrape_interval: 15s
+  scrape_timeout: 10s              # debe quedar POR DEBAJO de scrape_interval
+  evaluation_interval: 15s
+
+  # Las external labels se anaden a toda alerta reenviada a Alertmanager, y son
+  # lo que permite que un solo Alertmanager mantenga los entornos separados en vez de
+  # mezclar sus notificaciones.
+  #
+  # Los valores "${...}" son a proposito y Prometheus NO los expande:
+  # nunca lee variables de entorno de un fichero de configuracion, asi que sin intervencion este
+  # texto llegaria tal cual a la etiqueta. docker/prometheus-entrypoint.sh
+  # las sustituye antes del arranque y escribe prometheus.rendered.yml junto a
+  # este fichero, porque rule_files y scrape_config_files son relativos y
+  # Prometheus los resuelve contra el directorio de configuracion. El script aborta si falta
+  # una variable o si queda algo sin sustituir, de modo que dos entornos
+  # no pueden acabar compartiendo etiqueta por accidente.
+  #
+  # Ejecutar Prometheus fuera de Docker implica sustituir estas dos a mano.
+  # Ver docs/OPERATIONS.md.
+  external_labels:
+    monitor: "${NOC_MONITOR_NAME}"
+    environment: "${NOC_ENVIRONMENT}"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+      # Cuanto espera Prometheus la confirmacion de entrega de un lote de alertas.
+      # Si el puente va lento y se pasa del plazo, Alertmanager reintenta:
+      # comportamiento previsto, no un fallo.
+      timeout: 10s
+      api_version: v2
+
+# rules/ -> un fichero por dominio, con las alertas y las recording rules mezcladas
+# por proximidad de datos. El glob lo cubre todo, así que añadir un módulo nuevo no
+# obliga a tocar esta lista (el error clásico: una regla nueva en un fichero que nadie
+# añadió a rule_files, que se carga sin avisar y no existe).
+rule_files:
+  - "rules/*.yml"
+
+# Un fichero por dominio. El glob evita el mismo error que en rule_files: un
+# fichero nuevo que nadie añadió a la lista se carga sin avisar ni existir.
+scrape_config_files:
+  - "scrape/monitoreo.yml"
+  - "scrape/host.yml"
+  - "scrape/contenedores.yml"
+  - "scrape/sondas.yml"

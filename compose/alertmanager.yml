@@ -1,0 +1,52 @@
+# alertmanager: Agrupa, silencia y reparte las alertas a los receptores.
+# Definido en este fichero e inyectado por docker-compose.yml; los anchors
+# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+services:
+
+
+  # =========================================================================
+  # 6. ALERTMANAGER - grouping, inhibition, silencing and routing
+  # =========================================================================
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    container_name: noc-alertmanager
+    extends:
+      file: ./_base.yml
+      service: default
+    networks: [edge, mesh]
+    ports:
+      - "${NOC_BIND_ADDRESS:-127.0.0.1}:9093:9093"
+    volumes:
+      - ../alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ../docker/alertmanager-entrypoint.sh:/usr/local/bin/render-config.sh:ro
+      - alertmanager-data:/alertmanager
+    environment:
+      # Consumed by docker/alertmanager-entrypoint.sh to inject the Authorization
+      # header into the webhooks: Alertmanager does not expand env vars, so
+      # without that script the token could not be sent at all.
+      BRIDGE_TOKEN: ${BRIDGE_TOKEN:-}
+    # tmpfs for the rendered file, which holds the token: in memory, outside the
+    # container layer.
+    tmpfs:
+      - /tmp:size=8M,mode=1777
+    entrypoint: ["/bin/sh", "/usr/local/bin/render-config.sh"]
+    command:
+      - --config.file=/tmp/alertmanager.rendered.yml
+      - --storage.path=/alertmanager   # without this the silences are lost
+      - --web.listen-address=0.0.0.0:9093
+      - --log.level=info
+      - --log.format=logfmt
+    depends_on:
+      ntfy-bridge:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9093/-/healthy >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M

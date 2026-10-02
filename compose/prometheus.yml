@@ -1,0 +1,60 @@
+# prometheus: Fuente de verdad. TSDB persistente y reglas grabadas.
+# Definido en este fichero e inyectado por docker-compose.yml; los anchors
+# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+services:
+
+
+  # =========================================================================
+  # 5. PROMETHEUS - scraping, rule evaluation and TSDB
+  # =========================================================================
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    container_name: noc-prometheus
+    extends:
+      file: ./_base.yml
+      service: default
+    networks: [edge, mesh]
+    ports:
+      - "${NOC_BIND_ADDRESS:-127.0.0.1}:9090:9090"
+    volumes:
+      - ../prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../scrape:/etc/prometheus/scrape:ro
+      - ../rules:/etc/prometheus/rules:ro
+      - ../targets:/etc/prometheus/targets:ro
+      - ../docker/prometheus-entrypoint.sh:/usr/local/bin/render-config.sh:ro
+      - prometheus-data:/prometheus
+    environment:
+      # Consumed by docker/prometheus-entrypoint.sh to render the external labels.
+      NOC_MONITOR_NAME: ${NOC_MONITOR_NAME:-mi-noc}
+      NOC_ENVIRONMENT: ${NOC_ENVIRONMENT:-lab}
+    # The entrypoint substitutes the config variables and then execs Prometheus
+    # with whatever is in "command:".
+    entrypoint: ["/bin/sh", "/usr/local/bin/render-config.sh"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.rendered.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROM_RETENTION_TIME:-15d}
+      - --storage.tsdb.retention.size=${PROM_RETENTION_SIZE:-5GB}
+      - --web.enable-lifecycle      # reload rules without restarting
+      - --web.listen-address=0.0.0.0:9090
+      - --log.level=info
+      - --log.format=logfmt        # parseable by a log aggregator
+    depends_on:
+      cadvisor:
+        condition: service_started   # exposes no healthcheck
+      node-exporter:
+        condition: service_healthy
+      blackbox-exporter:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/healthy >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1G
+    stop_grace_period: 30s           # compacts and closes the TSDB cleanly

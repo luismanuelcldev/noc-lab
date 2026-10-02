@@ -1,0 +1,45 @@
+# cadvisor: Metricas de contenedor. Requiere privileged y el host montado.
+# Definido en este fichero e inyectado por docker-compose.yml; los anchors
+# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+services:
+
+
+  # =========================================================================
+  # 2. cADVISOR - container metrics
+  # =========================================================================
+    # NOT PRIVILEGE-FREE IN PRODUCTION: this is the component with the largest attack
+  # surface in the stack. It needs `privileged` and the host mounted, because it
+  # reads kernel cgroup metrics. Mitigations: read-only mounts, no published
+  # port (only Prometheus reads it, over the internal network), and it is
+  # recorded as an accepted risk in docs/SECURITY.md.
+  cadvisor:
+    # v0.55.1 is the oldest version that works with Docker 28 and later. Older
+    # ones report the target as up and expose every container_* metric while
+    # silently measuring only the root cgroup, which is what made the dashboards
+    # read "No data". Verified on Docker 29.5.3: v0.52.1 gives 1 series, v0.55.1
+    # gives 9. Do not downgrade untested. Full analysis in docs/OPERATIONS.md.
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: noc-cadvisor
+    privileged: true
+    extends:
+      file: ./_base.yml
+      service: default
+    networks: [mesh]
+    command:
+      - --docker_only=true          # skips host metrics that duplicate nodes
+      - --housekeeping_interval=15s # must be <= scrape_interval
+      - --max_housekeeping_interval=20s
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          # The limit has to stay: without it container_spec_memory_limit_bytes
+          # is 0 for the other containers and their memory percentage has no
+          # denominator. cAdvisor's own limit is what makes the others watchable.
+          memory: 384M

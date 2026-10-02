@@ -1,0 +1,3 @@
+# Respuesta deliberadamente vacía: la sonda TCP y la HTTP deben recibir un
+#  200 con cuerpo de longitud cero, para que la comprobación de contenido se
+#  aplique solo a la página principal.

@@ -1,0 +1,54 @@
+# ntfy-bridge: Puente entre el webhook de Alertmanager y las notificaciones ntfy.
+# Definido en este fichero e inyectado por docker-compose.yml; los anchors
+# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+services:
+
+
+  # =========================================================================
+  # 7. ntfy-bridge - the one component I wrote
+  # =========================================================================
+  # It turns the Alertmanager webhook into a phone notification, and it is the
+  # only component that holds credentials, so no other service needs to know
+  # them. Standard library only: no web framework, no build stage, ~70 MB image.
+  ntfy-bridge:
+    build:
+      context: ../ntfy-bridge
+      dockerfile: Dockerfile
+    image: mi-noc/ntfy-bridge:1.0.0
+    container_name: noc-ntfy-bridge
+    extends:
+      file: ./_base.yml
+      service: default
+    networks: [mesh]
+    environment:
+      NTFY_URL: ${NTFY_URL:-http://ntfy:80}
+      NTFY_TOPIC: ${NTFY_TOPIC:-noc-alerts}
+      # Token first, then user/password for ntfy instances with login enabled.
+      NTFY_TOKEN: ${NTFY_TOKEN:-}
+      NTFY_USER: ${NTFY_USER:-}
+      NTFY_PASSWORD: ${NTFY_PASSWORD:-}
+      # Token the bridge demands in the Authorization header. Empty means no
+      # auth, which matches an Alertmanager that sends none: Alertmanager does
+      # not expand environment variables, so a non-empty token would have to be
+      # committed by hand. See docs/SECURITY.md.
+      BRIDGE_TOKEN: ${BRIDGE_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    read_only: true                 # the app never writes to disk
+    tmpfs:
+      - /tmp:size=16M
+    cap_drop:
+      - ALL
+    # security_opt lo hereda de _base.yml: repetirlo aquí lo duplicaría, y
+    # Compose rechaza una lista con entradas repetidas.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/healthz',timeout=3).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 192M
+    restart: unless-stopped

@@ -1,0 +1,82 @@
+# ntfy: Servidor de notificaciones autoalojado.
+# Definido en este fichero e inyectado por docker-compose.yml; los anchors
+# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+services:
+
+
+  # =========================================================================
+  # 8. ntfy - SELF-HOSTED notification server
+  # =========================================================================
+    # I do not use the public ntfy.sh: sending internal alerts to a third party
+    # is a data leak, and without authentication the topic is public and guessable.
+  ntfy:
+    image: binwiederhier/ntfy:v2.28.0
+    container_name: noc-ntfy
+    extends:
+      file: ./_base.yml
+      service: default
+    # "serve" is mandatory. The image entrypoint only calls "ntfy", so without
+    # this subcommand ntfy prints its help and exits 0, and the container shows
+    # as "restarting" with no error in the logs: what you see IS the help text.
+    command: ["serve"]
+    networks: [edge, mesh]
+    ports:
+      # Non-standard port on purpose: it avoids clashing with a host ntfy.
+      - "${NOC_BIND_ADDRESS:-127.0.0.1}:8085:80"
+    environment:
+      # The URL ntfy embeds in the links it generates. It has to be reachable
+      # from wherever the notification is READ, not from wherever it is sent.
+      # On a phone that is the LAN address, never localhost: "localhost" on the
+      # phone is the phone itself.
+      NTFY_BASE_URL: "${NTFY_BASE_URL:-http://localhost:8085}"
+
+      # iOS push for a self-hosted server. The app holds a direct socket to this
+      # server only while it is open, so a notification that has to wake it up
+      # cannot come from here: it comes from ntfy.sh, which is the server hooked
+      # into Apple's push network.
+      #
+      # What crosses that boundary is deliberately thin. server.go forwards a
+      # poll_request to "<upstream>/<topicHash>", where the topic is a hash and
+      # not the topic name, and the app then comes back here for the real
+      # message. ntfy.sh and Apple therefore never see the alert text, and the
+      # only thing they learn is that an unidentified server published something
+      # to an unguessable topic.
+      #
+      # Without this option, push on an iPhone does not work while the app is
+      # closed. Left empty by default so a lab with no route to the internet does
+      # not need it. The trade is the public instance's rate limit, and if you
+      # ever hit it, upstream-access-token with your own ntfy.sh account raises
+      # the ceiling.
+      NTFY_UPSTREAM_BASE_URL: "${NTFY_UPSTREAM_BASE_URL:-}"
+      NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
+      NTFY_LOG_LEVEL: info
+      # Mandatory as soon as the published port leaves the loopback interface.
+      # Without it the topic is public and guessable to anyone on the network,
+      # and anyone who finds it can publish fake alerts.
+      NTFY_ENABLE_LOGIN: "${NTFY_ENABLE_LOGIN:-false}"
+      # Without this file ntfy refuses to create users at all: it answers
+      # "option database-url or auth-file not set; auth is unconfigured for
+      # this server". It lives in the volume so the users survive a recreate,
+      # which matters because recreating the stack must not lock the phone out
+      # of the topic.
+      NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
+      # What an unauthenticated client may do. "read-write" is the historical
+      # behaviour and it is only safe while the port stays on 127.0.0.1.
+      # "deny-all" is what makes the login meaningful: with it a client that has
+      # not authenticated gets nothing, and only a user with an explicit grant
+      # on the topic can read or publish.
+      NTFY_AUTH_DEFAULT_ACCESS: "${NTFY_AUTH_DEFAULT_ACCESS:-read-write}"
+      NTFY_ENCRYPTION: none          # in production: generate a key and use https
+    volumes:
+      - ntfy-data:/var/lib/ntfy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/v1/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M

@@ -1,0 +1,14 @@
+# Politica comun a todos los servicios, replicada por `extends`.
+# Un servicio `default` no se levanta nunca: solo existe para heredarse.
+services:
+  default:
+    # Sin esto el driver json-file crece hasta llenar el disco del host,
+    # que es una forma muy habitual de provocar una caída.
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true

@@ -1,0 +1,23 @@
+# Interfaz de los puertos publicados. 127.0.0.1 = solo local. Para alcanzar
+# el laboratorio desde una red privada: NOC_BIND_ADDRESS=0.0.0.0 en .env y un
+# proxy TLS delante. Ver docs/SECURITY.md. Compose carga el .env del proyecto
+# automaticamente; sin el, se aplican estos valores por defecto.
+#
+# Un servicio por fichero, en compose/. Cada uno cabe en una pantalla y se lee
+# sin Scandinavia por el resto. compose/_base.yml NO se incluye a proposito: solo
+# existe como fuente para `extends`, e incluirlo anadiria al proyecto un servicio
+# `default` sin imagen que Compose no puede validar.
+include:
+  # Redes y volumenes compartidos por todos los servicios.
+  - path: ./compose/_red.yml
+
+  # Un fichero por servicio, en el orden en que se presenta el laboratorio.
+  - path: ./compose/demo-app.yml
+  - path: ./compose/cadvisor.yml
+  - path: ./compose/node-exporter.yml
+  - path: ./compose/blackbox-exporter.yml
+  - path: ./compose/prometheus.yml
+  - path: ./compose/alertmanager.yml
+  - path: ./compose/ntfy-bridge.yml
+  - path: ./compose/ntfy.yml
+  - path: ./compose/grafana.yml

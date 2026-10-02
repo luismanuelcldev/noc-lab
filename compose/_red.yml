@@ -1,0 +1,23 @@
+# Redes y volumenes compartidos por los servicios.
+networks:
+  # Capa de presentacion: la unica que toca el host, y solo en loopback.
+  edge:
+    name: noc-edge
+    driver: bridge
+  # Capa de instrumentacion: exporters, Alertmanager y el puente.
+  # Ningun puerto de esta red se publica al host.
+  mesh:
+    name: noc-mesh
+    driver: bridge
+
+# Sin TSDB persistente, cada `docker compose down` borra el historico de
+# metricas y las alertas dejan de poder evaluarse sobre una ventana de tiempo.
+volumes:
+  prometheus-data:
+    name: noc-prometheus-data
+  alertmanager-data:
+    name: noc-alertmanager-data
+  grafana-data:
+    name: noc-grafana-data
+  ntfy-data:
+    name: noc-ntfy-data

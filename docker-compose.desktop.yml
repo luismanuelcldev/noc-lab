@@ -1,0 +1,45 @@
+# Override para Docker Desktop (Windows y macOS). No se usa en Linux, donde el
+# docker-compose.yml de la raiz ya es correcto.
+#
+#     docker compose -f docker-compose.yml -f docker-compose.desktop.yml up -d
+#     make up-desktop
+#
+# node-exporter monta la raiz del host con propagacion "rslave":
+#
+#     - /:/host/root:ro,rslave
+#
+# Esa es la opcion correcta en Linux: los montajes que aparecen mas tarde en el
+# host (un disco nuevo, digamos) se propagan al contenedor, de modo que
+# node-exporter no ve un arbol de ficheros congelado en el arranque. Docker
+# Desktop no puede hacerlo, porque su VM de Linux no es un montage compartido, y
+# el demonio aborta el contenedor con:
+#
+#     path / is mounted on / but it is not a shared or slave mount
+#
+# Docker Desktop no tiene opcion para propagar montajes del host, asi que aqui no
+# hay forma de conservar rslave. Lo que se pierde, y por que lo acepto en un
+# laboratorio: en Docker Desktop "/" dentro del contenedor es el sistema de
+# ficheros de la VM, no Windows ni macOS, asi que las metricas de disco, memoria y
+# CPU describen la VM; y sin rslave, los montajes que aparecen despues del
+# arranque no se propagan. En un servidor Linux, cambiar discos en caliente hace
+# que ese segundo punto importe, y por eso el fichero de la raiz conserva
+# rslave. Un despliegue real vigila el nodo con node-exporter instalado en el
+# host o como agente, no dentro de Docker Desktop; ver docs/INSTALL.md.
+
+services:
+
+  node-exporter:
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro          # sin "rslave": ver la nota de arriba
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/host/root
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|run/credentials/.+)($$|/)|^/(run/desktop/.+|parent-distro.*|.*/wslg/.*)($$|/)
+      - --collector.filesystem.fs-types-exclude=^(9p|drvfs|rootfs|autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$$
+      # --collector.systemd se deja fuera: Docker Desktop no tiene systemd y el
+      # colector solo produciria ruido. En Linux sigue activado.
+      - --collector.processes
+      - --collector.udp_queues

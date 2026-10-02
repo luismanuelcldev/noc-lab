@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>NOC Lab - objetivo sintetico</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+           margin: 0; padding: 2.5rem; background: #0f172a; color: #e2e8f0; }
+    main { max-width: 44rem; margin: 0 auto; }
+    h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+    .sub { color: #94a3b8; margin: 0 0 2rem; }
+    code { background: #1e293b; padding: .15rem .4rem; border-radius: 4px; }
+    ul { line-height: 1.9; }
+    .marker { color: #22c55e; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Objetivo sintetico de sondeo</h1>
+    <p class="sub">Este servicio existe para que las sondas de blackbox tengan
+       un objetivo real que comprobar. No ejecuta logica de negocio.</p>
+
+    <h2>Por que existe esta pagina</h2>
+    <p>La sonda <code>http_canary</code> de blackbox-exporter no solo valida el
+       codigo HTTP: tambien comprueba que el cuerpo contiene el texto
+       <span class="marker">noc-canary-ok</span>. Si alguien sustituye el
+       contenido por una pagina de mantenimiento, esa comprobacion falla y la
+       alerta salta aunque el puerto siga respondiendo 200.</p>
+
+    <h2>Como parar el servicio para ver una alerta</h2>
+    <ul>
+      <li><code>docker compose stop demo-app</code> &rarr;
+          <code>ServicioCaido</code> + <code>PuertoTCPInaccesible</code></li>
+      <li><code>docker compose start demo-app</code> &rarr; la alerta se
+          resuelve en el siguiente ciclo de evaluacion</li>
+    </ul>
+
+    <p class="marker">noc-canary-ok</p>
+  </main>
+</body>
+</html>

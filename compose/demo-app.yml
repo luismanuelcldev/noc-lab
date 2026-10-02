@@ -1,0 +1,32 @@
+# demo-app: Objetivo sintetico de las sondas blackbox. No publicado.
+# Definido en este fichero e inyectado por docker-compose.yml; los anchors
+# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+services:
+
+
+  # =========================================================================
+  # 1. SYNTHETIC TARGET
+  # =========================================================================
+  # Fictitious business service used as the blackbox probe target. Not
+  # published: a probe target is internal by definition, and exposing it would
+  # only add attack surface.
+  demo-app:
+    image: nginx:1.31-alpine
+    container_name: noc-demo-app
+    extends:
+      file: ./_base.yml
+      service: default
+    networks: [mesh]
+    volumes:
+      - ../demo-app/html:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 64M

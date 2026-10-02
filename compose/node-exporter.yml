@@ -1,0 +1,63 @@
+# node-exporter: Metricas del host. Solo los subarboles /proc y /sys necesarios.
+# Definido en este fichero e inyectado por docker-compose.yml; los anchors
+# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+services:
+
+
+  # =========================================================================
+  # 3. node_exporter - host metrics
+  # =========================================================================
+  # Only the needed /proc and /sys subtrees are mounted, which is safer than the
+  # usual full "/" mount that exposes the host tree for no reason.
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    container_name: noc-node-exporter
+    extends:
+      file: ./_base.yml
+      service: default
+    networks: [mesh]
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/host/root
+      # Excluded mount points: pseudo-filesystems and Docker credential trees,
+      # plus the WSL2/Docker Desktop paths that are read-only by design. On a
+      # Linux server the latter do not exist, so nothing real is hidden.
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|run/credentials/.+)($$|/)|^/(run/desktop/.+|parent-distro.*|.*/wslg/.*)($$|/)
+      # This list REPLACES node_exporter's default, so it has to be restated in
+      # full: dropping an entry silently brings back metrics the collector
+      # excludes for a reason. 9p/drvfs/rootfs are here because the read-only
+      # disk alert used to fire on its own, always, and an always-on alert trains
+      # the team to ignore it. Fixing it at the source also keeps the host
+      # dashboard honest. See docs/OPERATIONS.md.
+      - --collector.filesystem.fs-types-exclude=^(9p|drvfs|rootfs|autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$$
+      - --collector.systemd           # systemd units: service state
+      - --collector.processes         # processes and threads: leak detection
+      # The collector is called "udp_queues"; "udp_lite" is an old name that
+      # makes the binary refuse to start ("unknown long flag").
+      - --collector.udp_queues
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      # Plain :ro, NOT :rslave. The lab root has no "shared"/"slave" propagation,
+      # so the daemon refuses to create the container ("path / is mounted on / but
+      # it is not a shared or slave mount") and any `up` that recreates this
+      # service fails. Propagation is not needed here: /proc and /sys are mounted
+      # explicitly right above. I only use rslave for a host path that mounts
+      # other filesystems as submounts.
+      - /:/host/root:ro
+    healthcheck:
+      # v1.12.1 no longer serves "/-/healthy" or "/-/ready": both answer 404 and
+      # the container sits "unhealthy" while exporting perfectly good metrics.
+      # Checking /metrics for the build_info series also proves the collectors
+      # are producing, not just that the port answers.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9100/metrics | grep -q '^node_exporter_build_info' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M

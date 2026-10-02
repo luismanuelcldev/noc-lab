@@ -1,0 +1,100 @@
+# ===========================================================================
+#  ALERTMANAGER - agrupacion, inhibicion, silencios y enrutado
+# ===========================================================================
+#  Validate:  amtool check-config alertmanager.yml
+#  UI:        http://localhost:9093
+#  Razonamiento de cada decision: docs/ALERTMANAGER.md
+#
+#  Sin ${VAR} a proposito: Alertmanager no expande variables de entorno, asi
+#  que "${BRIDGE_TOKEN}" seria esa cadena literal; lo inyecta el entrypoint.
+# ===========================================================================
+
+global:
+  resolve_timeout: 5m                # sin parpadeo ni "ya arreglado" tardio
+  http_config:
+    follow_redirects: true
+
+# Gana la PRIMERA coincidencia: el orden es el diseño, e info va primero para
+# que LatidoDeMonitorizacion nunca pagee a una persona.
+route:
+  receiver: "bandeja-noc"            # debe existir siempre
+  # alertname Y service: dos criticas en servicios distintos no colapsan.
+  group_by: ["alertname", "service"]
+  group_wait: 30s                   # deja que las alertas hermanas se agrupen
+  group_interval: 5m                 # nueva notificacion con el grupo abierto
+  repeat_interval: 4h                # recordatorio mientras siga sin resolver
+
+  routes:
+    - matchers: [severity = "info"]
+      receiver: "registro-interno"   # queda registrada, no notifica
+
+    - matchers: [service = "monitoring"]
+      receiver: "equipo-monitoreo"
+      group_wait: 10s
+      repeat_interval: 1h
+
+    - matchers: [severity = "critical"]
+      receiver: "guardia"            # escalado a guardia
+      group_wait: 10s                # una critica no espera 30s
+      repeat_interval: 1h
+      continue: true                 # la 4 tambien aplica: negocio la ve
+
+    - matchers: [severity = "warning"]
+      receiver: "equipo-backend"
+      group_wait: 1m
+      repeat_interval: 12h           # se lee manana: 12h no es alerta perdida
+      continue: true
+
+inhibit_rules:
+  # 1. Un host caido silencia las alertas de infraestructura de ese host.
+  #    equal es ["job"], NO ["instance"]: absent() devuelve una serie con solo
+  #    {job="node"}, asi que con ["instance"] no coincidiria nunca, y una regla
+  #    que no inhibe nada es peor que ninguna. Detalle en docs/ALERTMANAGER.md.
+  - source_matchers: [alertname = "TargetHostCaido"]
+    target_matchers: [service = "host"]
+    equal: ["job"]
+
+  # 2. Un canal caido silencia las de entrega, o el fallo se alimenta solo.
+  - source_matchers: [alertname = "CanalNotificacionCaido"]
+    target_matchers: [service = "monitoring"]
+    equal: ["sink"]
+
+  # 3. Una critica abierta silencia los avisos del mismo servicio e instancia.
+  - source_matchers: [severity = "critical"]
+    target_matchers: [severity = "warning"]
+    equal: ["service", "instance"]
+
+  # 4. Un servicio caido silencia sus sondas: fallan juntas por definicion.
+  - source_matchers: [alertname = "ServicioCaido"]
+    target_matchers: [alertname =~ "PuertoTCPInaccesible|TiempoDeRespuestaAlto"]
+    equal: ["service", "instance"]
+
+# Sin plantillas propias: nunca se aplican a un webhook, y "payload" reemplaza
+# el cuerpo entero. El formato lo pone el bridge; el Authorization, el entrypoint.
+receivers:
+  - name: "bandeja-noc"              # receptor decatch-all
+    webhook_configs:
+      - url: "http://ntfy-bridge:5000/webhook"
+        send_resolved: true          # "ya esta arreglado" tambien es informacion
+        max_alerts: 50
+
+  - name: "equipo-monitoreo"
+    webhook_configs:
+      - url: "http://ntfy-bridge:5000/webhook"
+        send_resolved: true
+        max_alerts: 50
+
+  # Misma URL a proposito: la ruta decide por nombre de receptor.
+  - name: "guardia"
+    webhook_configs:
+      - url: "http://ntfy-bridge:5000/webhook"
+        send_resolved: true
+        max_alerts: 100
+
+  - name: "equipo-backend"
+    webhook_configs:
+      - url: "http://ntfy-bridge:5000/webhook"
+        send_resolved: true
+        max_alerts: 25
+
+  - name: "registro-interno"         # sin webhook_configs: visible, silente
