@@ -70,6 +70,10 @@ ignore = [
   # comprobaciones y solo produce ruido. "**" para que el patrón cubra también el
   # paquete noccheck, que es lo que un "*" a secas no alcanzaría.
   "scripts/**" = ["ANN001", "ANN201", "D100", "D103"]
+  # D101 y D102 (clase y metodo publicos sin docstring) se eximen solo en los
+  # tests de scripts/, no en "scripts/**": los validadores de produccion si
+  # documentan que comprueban y por que, y un test se explica con su nombre.
+  "scripts/test_*.py" = ["D101", "D102"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
