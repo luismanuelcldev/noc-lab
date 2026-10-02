@@ -1,0 +1,9 @@
+﻿# Only the runtime modules reach the image; tests and caches stay out.
+__pycache__/
+*.pyc
+test_*.py
+utiles.py
+.coverage
+.pytest_cache/
+.ruff_cache/
+.venv/
