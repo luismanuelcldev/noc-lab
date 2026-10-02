@@ -1,0 +1,47 @@
+{
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "description": "E/S de bloque y tráfico de red por contenedor. Una tasa de lectura alta y sostenida suele significar que el contenedor no tiene suficiente caché de páginas y va al disco constantemente.",
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [{"asDropdown": true, "icon": "external link", "includeVars": false, "keepTime": true, "tags": ["noc"], "targetBlank": false, "title": "Ir a...", "type": "dashboards", "url": ""}],
+  "panels": [
+    { "id": 1,
+      "type": "timeseries",
+      "title": "E/S de bloque por contenedor",
+      "description": "Bytes leídos y escritos por segundo. Una tasa de lectura alta y sostenida suele significar que el contenedor no tiene suficiente caché de páginas y va al disco constantemente. Es la primera pista cuando un servicio va lento y la CPU y la memoria parecen correctas.",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+      "fieldConfig": {"defaults": {"unit": "Bps", "decimals": 0, "min": 0, "custom": {"drawStyle": "line", "lineInterpolation": "linear", "lineWidth": 2, "fillOpacity": 10, "showPoints": "never", "spanNulls": true, "pointSize": 5, "stacking": {"group": "A", "mode": "none"}}, "color": {"mode": "palette-classic"}}, "overrides": []},
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "prometheus"}, "editorMode": "code", "expr": "sum by (name) (rate(container_fs_reads_bytes_total{job=\"cadvisor\", name!=\"\"}[5m]))", "legendFormat": "lectura {{name}}", "range": true, "refId": "A"},
+        {"datasource": {"type": "prometheus", "uid": "prometheus"}, "editorMode": "code", "expr": "sum by (name) (rate(container_fs_writes_bytes_total{job=\"cadvisor\", name!=\"\"}[5m]))", "legendFormat": "escritura {{name}}", "range": true, "refId": "B"}
+      ]
+    },
+    { "id": 2,
+      "type": "timeseries",
+      "title": "Red por contenedor",
+      "description": "Tráfico de red por contenedor. En la vista de detalle se excluyen los propios contenedores veth del stack y las interfaces de loopback para que no tapen la señal; aquí se ven todos.",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+      "fieldConfig": {"defaults": {"unit": "Bps", "decimals": 0, "min": 0, "custom": {"drawStyle": "line", "lineInterpolation": "linear", "lineWidth": 1, "fillOpacity": 15, "showPoints": "never", "spanNulls": true, "pointSize": 5, "stacking": {"group": "A", "mode": "none"}}, "color": {"mode": "palette-classic"}}, "overrides": []},
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"datasource": {"type": "prometheus", "uid": "prometheus"}, "editorMode": "code", "expr": "sum by (name) (rate(container_network_receive_bytes_total{job=\"cadvisor\", name!=\"\"}[5m]))", "legendFormat": "rx {{name}}", "range": true, "refId": "A"},
+        {"datasource": {"type": "prometheus", "uid": "prometheus"}, "editorMode": "code", "expr": "sum by (name) (rate(container_network_transmit_bytes_total{job=\"cadvisor\", name!=\"\"}[5m]))", "legendFormat": "tx {{name}}", "range": true, "refId": "B"}
+      ]
+    }
+  ],
+  "preload": false,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["noc", "contenedores"],
+  "templating": {"list": []},
+  "time": {"from": "now-3h", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "Disco y red por contenedor",
+  "uid": "noc-contenedores-io",
+  "version": 1,
+  "weekStart": ""
+}

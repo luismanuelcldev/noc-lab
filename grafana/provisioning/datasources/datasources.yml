@@ -1,0 +1,70 @@
+# Datasources aprovisionados: `docker compose up -d` deja el sistema entero
+# funcionando, sin pasos manuales. Verificar:
+#   curl -s http://localhost:3000/api/datasources
+#
+# Un dashboard que depende de un datasource creado a mano no se puede reconstruir:
+# en otra máquina el panel dice "No data" y parece que el stack está roto.
+#
+# Las URL son nombres de servicio de la red interna de Docker. Nunca "localhost":
+# dentro de la red de Grafana, localhost es el propio contenedor de Grafana.
+
+apiVersion: 1
+
+datasources:
+  # Prometheus: única fuente de verdad del laboratorio.
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # Formato de métricas de Prometheus 3.x; sin esto fallan las consultas de
+      # valores de etiqueta de los dashboards.
+      httpMethod: POST
+      timeInterval: 15s
+      manageAlerts: false
+      prometheusType: Prometheus
+      prometheusVersion: 3.15.0
+      # Cuánto histórico conserva un panel al ampliar el rango: solo afecta a la
+      # representación, no al almacenamiento.
+      incrementalQuerying: true
+      incrementalQueryOverlapWindow: 10m
+      cacheLevel: Low
+
+  # Alertmanager: alertas activas e historial de silencios. Sin este datasource
+  # el panel de alertas queda en "No data" y no hay forma de ver qué está
+  # silenciado ni cuándo se resolvió una alerta.
+  - name: Alertmanager
+    uid: alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    editable: false
+    jsonData:
+      # API v2: la que habla Alertmanager 0.34 y la que devuelve la estructura
+      # con "status" y "receivers".
+      implementation: prometheus
+      handleGrafanaManagedAlerts: false
+
+  # ntfy-bridge, alcanzado a través de Prometheus y no como backend propio:
+  # aporta la salud de la cadena de notificación, y reutilizar el datasource de
+  # Prometheus evita mantener otro driver.
+  # El nombre NO se traduce a propósito: Grafana identifica la datasource por
+  # `name`, no por `uid`, y la 12.x la marca como solo lectura ("Cannot update
+  # read-only data source"). Renombrarla aquí choca con la ya almacenada y el
+  # contenedor entra en bucle de reinicio. `uid: bridge` es lo que usan los
+  # 13 dashboards, y eso sí es estable.
+  - name: Bridge
+    uid: bridge
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+      # El puente no publica métricas de negocio, solo su propia salud.
+      prometheusType: Prometheus
+      cacheLevel: Low

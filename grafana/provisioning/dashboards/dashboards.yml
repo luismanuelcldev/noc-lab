@@ -1,0 +1,31 @@
+# Dashboards aprovisionados: Grafana los relee del repositorio, no de la UI.
+# Verificar: curl -s http://localhost:3000/api/search
+#
+# allowUiUpdates: false. Editar por la UI y guardar funciona hasta el siguiente
+# reinicio, cuando el fichero del repositorio sobrescribe el cambio y nadie se
+# entera de la pérdida. La UI es para explorar; el repositorio es la fuente.
+#
+# disableDeletion: true. Un dashboard borrado del repositorio no se borra de
+# Grafana; sin esto, un `rm` accidental deja un panel huérfano enseñando métricas
+# de un servicio que ya no existe.
+#
+# `path` es la ruta DENTRO del contenedor. Cambiarla sin el mount coherente deja
+# el panel vacío sin ningún error visible.
+
+apiVersion: 1
+
+providers:
+  - name: "mi-noc"
+    orgId: 1
+    folder: "Centro de monitorización"
+    folderUid: "noc"
+    type: file
+    # Ruta dentro del contenedor, no en el host.
+    path: /var/lib/grafana/dashboards
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      # Ficheros, no carpetas: el repositorio es plano, de ahí folders: false.
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

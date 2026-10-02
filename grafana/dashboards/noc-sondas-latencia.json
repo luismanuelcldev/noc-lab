@@ -1,0 +1,41 @@
+{
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "description": "Percentiles y desglose por fase de conexión. La latencia es la cifra que primero se nota en un servicio que sigue contestando.",
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [{"asDropdown": true, "icon": "external link", "includeVars": false, "keepTime": true, "tags": ["noc"], "targetBlank": false, "title": "Ir a...", "type": "dashboards", "url": ""}],
+  "panels": [
+    { "id": 1,
+      "type": "timeseries",
+      "title": "Tiempo de respuesta (p50, p95, p99)",
+      "description": "Percentiles calculados con quantile_aggregate sobre quantile_over_time, que es la forma correcta de hacer percentiles sobre histogramas en Prometheus. El p95 es la cifra que mira el negocio: el p50 esconde a la mitad de los usuarios. La serie grabada noc_sonda_latencia_ms evita recalcular el histograma en cada punto del rango.",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+      "fieldConfig": {"defaults": {"unit": "s", "decimals": 3, "min": 0, "custom": {"drawStyle": "line", "lineInterpolation": "linear", "lineWidth": 2, "fillOpacity": 5, "showPoints": "never", "spanNulls": false, "pointSize": 5, "stacking": {"group": "A", "mode": "none"}, "axisSoftMin": 0}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [ {"datasource": {"type": "prometheus", "uid": "prometheus"}, "editorMode": "code", "expr": "noc_sonda_latencia_ms{job=\"blackbox-http\"}", "legendFormat": "p95 {{instance}}", "range": true, "refId": "A"} ]
+    },
+    { "id": 2,
+      "type": "timeseries",
+      "title": "Latencia por fase de conexión",
+      "description": "probe_duration_seconds desglosado en dns, connect, tls, send, wait y process. Cuando sube la latencia, este panel dice si el problema es la red, la criptografía o la aplicación. Sin él, lo único que se sabe es que «va lento».",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+      "fieldConfig": {"defaults": {"unit": "s", "decimals": 4, "min": 0, "custom": {"drawStyle": "line", "lineInterpolation": "linear", "lineWidth": 1, "fillOpacity": 30, "showPoints": "never", "spanNulls": true, "pointSize": 5, "stacking": {"group": "A", "mode": "normal"}}, "color": {"mode": "palette-classic"}}, "overrides": []},
+      "options": {"legend": {"calcs": ["max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [ {"datasource": {"type": "prometheus", "uid": "prometheus"}, "editorMode": "code", "expr": "probe_duration_seconds{job=\"blackbox-http\"}", "legendFormat": "{{instance}}", "range": true, "refId": "A"} ]
+    }
+  ],
+  "preload": false,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["noc", "sondas", "latencia"],
+  "templating": {"list": []},
+  "time": {"from": "now-24h", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "Latencia de las sondas",
+  "uid": "noc-sondas-latencia",
+  "version": 1,
+  "weekStart": ""
+}

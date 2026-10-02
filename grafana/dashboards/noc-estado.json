@@ -1,0 +1,41 @@
+{
+  "annotations": {"list": [{"builtIn": 1, "datasource": {"type": "grafana", "uid": "-- Grafana --"}, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]},
+  "description": "Salud del propio sistema de monitorización. Es lo único que importa cuando todos los demás paneles dicen «sin datos»: si Prometheus no está evaluando reglas, ningún otro panel tiene nada que enseñar y no hay forma de distinguir «todo va bien» de «no estoy mirando nada».",
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [{"asDropdown": true, "icon": "external link", "includeVars": false, "keepTime": true, "tags": ["noc"], "targetBlank": false, "title": "Ir a...", "type": "dashboards", "url": ""}],
+  "panels": [
+    { "id": 1,
+      "type": "stat",
+      "title": "¿Está Prometheus evaluando reglas?",
+      "description": "Fuente: el propio Prometheus. Si aparece en rojo, TODAS las alertas están congeladas y ningún panel de este repositorio es fiables.",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"color": "red", "index": 1, "text": "CONGELADO"}}, "type": "value"}, {"options": {"1": {"color": "green", "index": 0, "text": "Correcto"}}, "type": "value"}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [ {"datasource": {"type": "prometheus", "uid": "prometheus"}, "editorMode": "code", "expr": "min(up{job=\"prometheus\"})", "legendFormat": "prometheus", "range": true, "refId": "A"} ]
+    },
+    { "id": 2,
+      "type": "stat",
+      "title": "Auto-recogida",
+      "description": "Prometheus no se recoge a sí mismo, así que no llegan métricas nuevas. up==0 significa que ha fallado el CAMINO hacia sí mismo: casi siempre es un problema de red interna o del DNS del contenedor.",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"color": "red", "index": 1, "text": "SIN RECOGIDA"}}, "type": "value"}, {"options": {"1": {"color": "green", "index": 0, "text": "Correcto"}}, "type": "value"}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
+      "targets": [ {"datasource": {"type": "prometheus", "uid": "prometheus"}, "editorMode": "code", "expr": "up{job=\"prometheus\"}", "legendFormat": "propio", "range": true, "refId": "A"} ]
+    }
+  ],
+  "preload": false,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["noc", "estado"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "",
+  "title": "Estado del sistema",
+  "uid": "noc-estado",
+  "version": 1,
+  "weekStart": ""
+}
