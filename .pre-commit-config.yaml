@@ -1,0 +1,39 @@
+# ===========================================================================
+#  Comprobaciones antes de confirmar
+# ===========================================================================
+#  La CI ejecuta estas mismas comprobaciones. Tenerlas tambien aqui no es
+#  redundancia: la CI te dice que algo se rompio cuando ya esta en el
+#  repositorio, y esto te lo dice antes de que llegue.
+#
+#  Instalar una vez:
+#      pip install pre-commit
+#      pre-commit install
+#
+#  Para ejecutar todo sin confirmar:
+#      pre-commit run --all-files
+#
+#  ruff se fija a la misma version que instala la CI, asi que lo que corre aqui y
+#  lo que corre en la cadena son la misma comprobacion. Los JSON de los
+#  paneles quedan fuera del hook de formato: son exportaciones generadas por
+#  Grafana, y reformatearlos solo produce un diff que nadie puede revisar.
+# ===========================================================================
+exclude: '^grafana/dashboards/.*\.json$'
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format

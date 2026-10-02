@@ -1,0 +1,100 @@
+# --- SECRETOS ----------------------------------------------------------------
+# .env NUNCA se versiona. Solo .env.example, y solo con valores de ejemplo,
+# nunca credenciales reales.
+.env
+.env.*
+!.env.example
+
+# Cualquier configuracion local que pudiera guardar credenciales, IPs internas,
+# nombres de equipo o tokens de la institucion.
+config/local/
+*.local.yml
+*.local.yaml
+*.secret.yml
+*.override.yml
+*.override.yaml
+
+# Claves privadas, certificados y material criptografico
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+
+# --- SECRETOS DE HERRAMIENTAS (tokens de CI, si alguien los guarda aquí) ------
+.github/*.token
+*.vault
+.vault/
+
+# --- DATOS EN EJECUCION DEL STACK (no versionar) -----------------------------
+# Instantes del TSDB, silencios de Alertmanager, datos de Grafana y de ntfy. Son
+# datos de operacion y pueden contener informacion de la institucion.
+/data/
+/backup/
+/grafana-data/
+/prometheus-data/
+/alertmanager-data/
+/ntfy-data/
+
+# --- COPIAS Y EXPORTACIONES --------------------------------------------------
+# Una copia de Grafana o Alertmanager puede contener usuarios, dashboards con
+# nombres de sistemas internos y silencios en vigor.
+/backups/*
+!/backups/.gitkeep
+*.tar.gz
+*.tar
+*.zip
+*.dump
+*.sql
+*.rdb
+
+# --- PYTHON (ntfy-bridge) ----------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+*.egg-info/
+dist/
+build/
+
+# --- CONTENEDORES -------------------------------------------------------------
+# El contexto de compilacion del puente puede contener artefactos, o el propio
+# .env, si se copia el directorio entero sin un .dockerignore.
+/docker-build-cache/
+
+# --- EDITORES Y SISTEMA OPERATIVO -------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.~lock.*#
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- FICHEROS DE TRABAJO TEMPORALES -----------------------------------------
+*.tmp
+*.log
+*.bak
+*.orig
+*.rej
+scratch/
+tmp/

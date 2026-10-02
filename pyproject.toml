@@ -1,0 +1,75 @@
+# ===========================================================================
+#  Configuración de herramientas para todo el repositorio
+# ===========================================================================
+#  Este fichero no declara el proyecto: configura lo que aplica a todo el
+#  árbol, y sobre todo a ruff.
+#
+#  Por qué ruff se configura aquí y no dentro de ntfy-bridge/: porque hay código
+#  fuera de ese directorio. Los validadores de scripts/ revisan el repositorio
+#  entero (reglas de Prometheus, cuadros de mando de Grafana, documentación) y no
+#  tienen nada que ver con el paquete del puente, y sin embargo se ejecutan en el
+#  mismo paso de CI y deben usar las mismas reglas. Ruff lee el pyproject.toml
+#  más cercano que contenga [tool.ruff], así que dejar la configuración en la
+#  raíz hace que `ruff check .` sea el mismo comando con el mismo resultado desde
+#  cualquier directorio.
+#
+#  Uso:
+#        ruff check .            (análisis estático de todo el árbol)
+#        ruff format .           (formateo)
+#        ruff format --check .   (lo que ejecuta la CI)
+# ===========================================================================
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [".venv", "__pycache__", "data", "grafana"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # bugbear
+    "UP",   # pyupgrade
+    "SIM",  # simplify
+    "RET",  # return
+    "C4",   # comprehensions
+    "PL",   # pylint
+    "RUF",  # reglas propias de ruff
+    "S",    # bandit: seguridad
+    "D",    # pydocstyle
+    "ANN",  # anotaciones de tipo
+]
+ignore = [
+    "D203",   # incompatible con D211
+    "D213",   # incompatible con D212
+    "ANN401", # Any es legítimo en el borde de un manejador HTTP
+    "PLR0913", # demasiados argumentos: aceptable en funciones de configuración
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Los patrones se comparan con la ruta relativa a la raíz del repositorio, que es
+# donde está este fichero. Por eso llevan el prefijo "ntfy-bridge/".
+#
+# En los tests es de esperar que aparezcan cadenas con aspecto de credencial: son
+# valores inventados cuyo único propósito es comprobar que el enmascarado y la
+# validación funcionan. S105 y S106 (secreto en código) y S101 (assert) se
+# desactiva aquí y solo aquí, nunca en código de producción. El patrón es
+# test_*.py, así que esta única línea cubre todos los módulos en los que se
+# dividió el antiguo test_bridge.py.
+"ntfy-bridge/test_*.py" = [
+    "D100", "D101", "D102", "D103", "D107",
+    "S101", "S105", "S106", "ANN001", "ANN003", "ANN201", "PLR2004",
+]
+# ajuste.py corre en un contenedor y DEBE usar 0.0.0.0 por defecto: dentro de la
+# red de Docker, 127.0.0.1 dejaría el puente inalcanzable desde cualquier otro
+# servicio. El aislamiento viene de la red, no de la dirección de escucha.
+"ntfy-bridge/ajuste.py" = ["S104"]
+  # Los validadores de scripts/ son utilidades de un solo comando: anotar el tipo
+  # de cada variable intermedia no aporta nada a un bloque lineal de
+  # comprobaciones y solo produce ruido. "**" para que el patrón cubra también el
+  # paquete noccheck, que es lo que un "*" a secas no alcanzaría.
+  "scripts/**" = ["ANN001", "ANN201", "D100", "D103"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
