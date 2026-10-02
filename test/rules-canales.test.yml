@@ -1,0 +1,54 @@
+# Tests de regresión de los canales de salida del metaservicio: que un destino muerto
+# hable de verdad, y que agrupar por destino no arrastre al sano. Cubren el módulo
+# rules/metaservicio.rules.yml; ver test/rules-metaservicio.test.yml para el resto.
+# Ejecutar: promtool test rules test/rules-canales.test.yml
+#
+# SEMÁNTICA DE promtool QUE AFECTA A ESTOS TESTS:
+#   * Las rutas de rule_files se resuelven desde la UBICACIÓN de este fichero, por eso
+#     el "../". Y falla en silencio de verdad: si la ruta está mal, promtool carga CERO
+#     reglas y todos los "exp_alerts: []" negativos pasan por el motivo equivocado. Si
+#     dudas, comprueba que no sale un WARNING de "no file match pattern".
+#   * exp_labels y exp_annotations se comparan como CONJUNTOS COMPLETOS, no subconjuntos.
+#   * Una alerta con "for: 5m" dispara EN el minuto 5, no después. El negativo va en 4m.
+rule_files:
+  - ../rules/*.yml
+
+evaluation_interval: 1m
+
+tests:
+  # REGRESIÓN. Con la expresión antigua, "max by (sink) (x == 0) > 0", la comparación
+  # sin bool devolvía 0, el máximo era 0 y el "> 0" final era 0 > 0: siempre falso. Esta
+  # alerta no podía dispararse nunca. Aquí se comprueba que un destino muerto sí da la cara.
+  - name: "CanalNotificacionCaido REGRESIÓN: == bool 0 permite que la alerta dispare de verdad"
+    interval: 1m
+    input_series:
+      - series: 'ntfy_bridge_delivery_success{sink="ntfy"}'
+        values: '0x10'
+      - series: 'ntfy_bridge_delivery_success{sink="correo"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: CanalNotificacionCaido
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: CanalNotificacionCaido
+        exp_alerts:
+          - exp_labels: {severity: critical, service: monitoring, sink: ntfy}
+            exp_annotations:
+              summary: "Fallo de entrega sostenido en el destino: ntfy"
+              description: "El puente de notificaciones no puede entregar al destino 'ntfy'. Si ocurre durante un incidente real, la alerta nunca llegará a una persona."
+              runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#canal-notificacion-caido"
+              dashboard_url: "http://localhost:3000/d/noc-puente"
+
+  # ...y que agrupar por sink no arrastra al destino sano. Este negativo NO puede vivir
+  # en el test anterior: el filtro de exp_alerts es por alertname, así que un exp_alerts
+  # vacío ahí probaría que no hay ningún destino caído, no que este está bien.
+  - name: "CanalNotificacionCaido: un destino sano no produce alerta"
+    interval: 1m
+    input_series:
+      - series: 'ntfy_bridge_delivery_success{sink="correo"}'
+        values: '1x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: CanalNotificacionCaido
+        exp_alerts: []

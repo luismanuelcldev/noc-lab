@@ -1,0 +1,92 @@
+# Contenedores: uso de CPU, memoria y reinicios.
+# Validar: promtool check rules rules/contenedores.rules.yml
+#
+# SOBRE LAS ETIQUETAS, y no es trivial. cAdvisor NO publica una etiqueta
+# "container_name": comprobado contra cAdvisor v0.55.1 real, no existe en ninguna
+# de sus métricas. Uso "name" porque es la única estable y legible en Docker y en
+# Kubernetes. Usar "container_name" no da error de sintaxis: promtool lo acepta, la
+# interfaz lo muestra sin quejarse y la alerta sencillamente nunca dispara porque
+# ninguna serie coincide. Una alerta muerta es peor que no tenerla, porque aparenta
+# que algo está vigilándose.
+groups:
+  - name: contenedores
+    rules:
+      # MISMA TRAMPA DE UNIDADES que CPUHostAlta:
+      # container_cpu_usage_seconds_total también es un contador de segundos de CPU,
+      # así que rate() devuelve NÚCLEOS, no porcentaje. El umbral 0.80 significa
+      # "0.8 núcleos" y la anotación lo documenta así, en vez de inventar un "% de
+      # CPU". Expresarlo como porcentaje del límite exigiría container_spec_cpu_quota
+      # sobre container_spec_cpu_period, que obliga a tratar limit=0 y produce
+      # divisiones por cero. Decisión: alertar sobre núcleos absolutos, simple y sin
+      # falsos negativos.
+      # Sin filtro mode!="idle": bajo cgroup v2 las métricas de contenedor no tienen
+      # esa etiqueta (la que hay es cpu="total"). En métricas de node-exporter sí
+      # existe, y allí el filtro se conserva.
+      - alert: ContenedorUsoCPUAlto
+        expr: |
+          sum by (name) (
+            rate(container_cpu_usage_seconds_total{job="cadvisor", name!=""}[2m])
+          ) > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.name }}"
+        annotations:
+          summary: "El contenedor {{ $labels.name }} usa {{ $value | printf \"%.2f\" }} núcleos"
+          description: "Uso sostenido por encima de 0.8 núcleos de CPU durante 5 minutos. Ojo con las unidades: esta métrica va en NÚCLEOS, no en porcentaje. Para el porcentaje del límite del contenedor, mira el dashboard de contenedores."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#contenedor-cpu-alto"
+          dashboard_url: "http://localhost:3000/d/noc-contenedores-detalle"
+
+      # working_set_bytes es la cifra comparable con el límite del contenedor, y se
+      # multiplica por 100 para trabajar en porcentaje, que es la unidad del límite.
+      # EL FILTRO "> 0" NO ES OPCIONAL, Y SU AUSENCIA ES UN INCIDENTE: cAdvisor
+      # publica container_spec_memory_limit_bytes = 0 para todo contenedor sin límite
+      # asignado, y medido en este propio stack, TODOS lo están. Sin el filtro,
+      # working_set / 0 es +Inf, +Inf > 90 es siempre cierto y todas las alertas de
+      # contenedor quedan permanentemente disparadas. Un dashboard siempre rojo no es
+      # un dashboard, es ruido, y es la forma más rápida de que un equipo ignore el
+      # sistema entero. Con el filtro, un contenedor sin límite simplemente no entra,
+      # que es lo correcto: sin denominador no hay porcentaje.
+      - alert: ContenedorUsoMemoriaAlto
+        expr: |
+          (
+            max by (name) (
+              container_memory_working_set_bytes{job="cadvisor", name!=""}
+            )
+              / on(name)
+            max by (name) (
+              container_spec_memory_limit_bytes{job="cadvisor", name!=""} > 0
+            )
+          ) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.name }}"
+        annotations:
+          summary: "El contenedor {{ $labels.name }} está al {{ $value | printf \"%.1f\" }}% de su límite de memoria"
+          description: "Working set por encima del 90% del límite asignado. Pasado el 100% el kernel lo mata de inmediato (OOM kill)."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#contenedor-memoria-alto"
+          dashboard_url: "http://localhost:3000/d/noc-contenedores-resumen"
+
+      # CORRECCIÓN IMPORTANTE sobre la versión anterior de esta regla, que usaba
+      # increase(container_last_seen[10m]). container_last_seen NO es un contador: es
+      # un reloj, vale "ahora" en la unidad temporal del exportador y avanza segundo a
+      # segundo mientras el contenedor vive. increase() sobre él da ~0, porque el valor
+      # crece de forma continua y increase() lo lee como una subida suave, no como
+      # eventos. La regla no detectaba ni un solo reinicio: era decoración que parecía
+      # funcionar. container_start_time_seconds sí cambia cuando el contenedor arranca,
+      # y changes() cuenta cuántas veces cambió dentro de la ventana, que es
+      # exactamente el número de reinicios. El umbral es 2 y no 1 porque la aparición
+      # de la serie ya cuenta como un cambio: la idea es distinguir "arrancó una vez"
+      # de "está en bucle de fallos".
+      - alert: ContenedorReiniciado
+        expr: changes(container_start_time_seconds{job="cadvisor", name!=""}[10m]) >= 2
+        for: 2m
+        labels:
+          severity: warning
+          service: "{{ $labels.name }}"
+        annotations:
+          summary: "El contenedor {{ $labels.name }} se reinició varias veces en 10 minutos"
+          description: "Dos o más arranques en 10 minutos. Síntoma clásico de bucle de fallos: la causa suele estar en el log del contenedor, no en los recursos."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#contenedor-reiniciado"
+          dashboard_url: "http://localhost:3000/d/noc-contenedores-detalle"

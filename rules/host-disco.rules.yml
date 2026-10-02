@@ -1,0 +1,74 @@
+# Disco del host: capacidad y estado de escritura.
+# Validar: promtool check rules rules/host-disco.rules.yml
+groups:
+  - name: disco_host
+    rules:
+      # Se excluyen los pseudo-sistemas de archivos: /proc y /sys suelen reportar
+      # 0 bytes usados y generarían falsos positivos.
+      - alert: DiscoCasiLleno
+        expr: |
+          (
+            node_filesystem_avail_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|fuse.*|nsfs"}
+              / node_filesystem_size_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|fuse.*|nsfs"}
+          ) * 100 < 15
+        for: 10m
+        labels:
+          severity: warning
+          service: host
+        annotations:
+          summary: "Disco {{ $labels.mountpoint }} al {{ $value | printf \"%.1f\" }}% libre"
+          description: "Queda menos del 15% de espacio en {{ $labels.instance }}:{{ $labels.mountpoint }}. Un disco lleno detiene las escrituras del TSDB, detiene el registro y detiene todo lo que necesite escribir."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#disco-casi-lleno"
+          dashboard_url: "http://localhost:3000/d/noc-equipo-disco"
+
+      # Ancla propia, no compartida con DiscoCasiLleno: esta es crítica y avisa de
+      # noche, y quien siga el enlace a las 3 de la mañana necesita el procedimiento
+      # de contención inmediata, no el de "mira cuánto queda cuando puedas".
+      - alert: DiscoCriticamenteLleno
+        expr: |
+          (
+            node_filesystem_avail_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|fuse.*|nsfs"}
+              / node_filesystem_size_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|fuse.*|nsfs"}
+          ) * 100 < 5
+        for: 5m
+        labels:
+          severity: critical
+          service: host
+        annotations:
+          summary: "CRITICAL: disco {{ $labels.mountpoint }} al {{ $value | printf \"%.1f\" }}% libre"
+          description: "Las escrituras están a punto de bloquearse en {{ $labels.instance }}. Actúa ahora: quedarse sin espacio no es una opción, y hacerlo tarde tampoco."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#disco-criticamente-lleno"
+          dashboard_url: "http://localhost:3000/d/noc-equipo-disco"
+
+      # Síntoma de un sistema de archivos degradado por hardware o por un journal
+      # sin reproducir. El sistema sigue "vivo" y no activa ninguna otra alerta,
+      # mientras escribe sobre un sistema de solo lectura.
+      - alert: DiscoSoloLectura
+        expr: node_filesystem_readonly{job="node"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          service: host
+        annotations:
+          summary: "Sistema de archivos en solo lectura: {{ $labels.mountpoint }}"
+          description: "{{ $labels.instance }} tiene {{ $labels.mountpoint }} montado en solo lectura. Sospecha de fallo de hardware o corrupción de metadatos."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#disco-solo-lectura"
+          dashboard_url: "http://localhost:3000/d/noc-equipo-disco"
+
+      # Un disco que se llena de golpe es un incidente. Uno que se llena de forma
+      # constante es capacidad mal planificada. Proyectado a 24h.
+      - alert: CrecimientoDeDiscoExcesivo
+        expr: |
+          predict_linear(
+            node_filesystem_avail_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|fuse.*|nsfs"}[6h],
+            86400
+          ) < 0
+        for: 30m
+        labels:
+          severity: warning
+          service: host
+        annotations:
+          summary: "{{ $labels.mountpoint }} se llenará en menos de 24 horas"
+          description: "La tendencia lineal de las últimas 6 horas proyecta el agotamiento de {{ $labels.mountpoint }} ({{ $labels.instance }}) en menos de 24h. Esto pide un aumento planificado de capacidad, no una limpieza de urgencia."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#crecimiento-de-disco"
+          dashboard_url: "http://localhost:3000/d/noc-equipo-disco"

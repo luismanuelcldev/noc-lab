@@ -1,0 +1,46 @@
+# ===========================================================================
+#  SCRAPE - el centro de monitorizacion observandose a si mismo
+# ===========================================================================
+#  Prometheus, Alertmanager y el puente de notificacion. Los tres componentes
+#  que tienen que estar sanos para que los demas trabajos valgan algo.
+# ===========================================================================
+
+scrape_configs:
+  # -- 1. El propio Prometheus -----------------------------------------------
+  # Sin esto no hay forma de saber que el scrape esta roto: un Prometheus muerto
+  # produce silencio, y el silencio no es un estado detectable.
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          component: "monitoring"
+
+  # -- 2. Alertmanager --------------------------------------------------------
+  # Hace que los fallos de entrega de notificaciones disparen alerta. Sin el, un
+  # canal de notificacion muerto es un fallo silencioso.
+  - job_name: "alertmanager"
+    static_configs:
+      - targets: ["alertmanager:9093"]
+        labels:
+          component: "monitoring"
+
+  # -- 3. El propio puente de notificacion -----------------------------------
+  # Sin este scrape, un canal de alerta roto solo se ve como silencio. La serie
+  # ntfy_bridge_delivery_success alimenta la alerta CanalNotificacionCaido, que
+  # es la unica forma de enterarse de que el canal esta roto antes de que
+  # ocurra el incidente para el que existia.
+  #
+  # aqui NO hay metric_relabel_configs, A PROPOSITO. Una version anterior
+  # descartaba ntfy_bridge_delivery_duration_seconds_(sum|count|avg) por
+  # "alta cardinalidad", y el panel de Grafana que consulta sum/count quedo en
+  # blanco para siempre mientras todos los demas paneles seguianecutor diciendo
+  # que estaban sanos. Una serie descartada es indistinguible de una metrica que
+  # dejo de producirse, y estas diez familias son todo el contrato publico del
+  # puente con los paneles. No las filtres sin comprobar antes las consultas de
+  # los dashboards.
+  - job_name: "ntfy-bridge"
+    static_configs:
+      - targets: ["ntfy-bridge:5000"]
+        labels:
+          service: "notificaciones"
+          component: "monitoring"

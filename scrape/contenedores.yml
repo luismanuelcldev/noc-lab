@@ -1,0 +1,18 @@
+# ===========================================================================
+#  SCRAPE - contenedores
+# ===========================================================================
+#  Validar:  promtool check config prometheus.yml
+# ===========================================================================
+
+scrape_configs:
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          component: "containers"
+    metric_relabel_configs:
+      # cAdvisor tambien informa del host y sus procesos; descartar ese ruido
+      # evita duplicar lo que node_exporter ya envia.
+      - source_labels: [__name__]
+        regex: "container_(blkio|cpu)_io_.*"
+        action: "drop"

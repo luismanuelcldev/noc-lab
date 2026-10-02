@@ -1,0 +1,57 @@
+# Disponibilidad: ¿puede el cliente usar el servicio?
+# Es la pregunta que hace el negocio. Las alertas de infraestructura son
+# consecuencias, no causas.
+# Validar: promtool check rules rules/disponibilidad.rules.yml
+groups:
+  - name: disponibilidad
+    rules:
+      - alert: ServicioCaido
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "[CRITICAL] {{ $labels.service }} no responde"
+          description: "La sonda sintética hacia {{ $labels.instance }} lleva más de 1 minuto fallando. El servicio no es alcanzable desde fuera de la red de monitorización."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#servicio-caido"
+          dashboard_url: "http://localhost:3000/d/noc-sondas"
+
+      # probe_success == 1 pero el cuerpo no es el esperado: el puerto responde
+      # mientras la aplicación está rota, o un balanceador devuelve errores. Es la
+      # falla que un "¿está vivo?" normal NO detecta.
+      - alert: SondaDevueltaRespuestaInvalida
+        expr: probe_http_status_code{job="blackbox-http"} != 200
+        for: 2m
+        labels:
+          severity: warning
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "{{ $labels.service }} responde con HTTP {{ $value }}"
+          description: "El equipo responde en el puerto pero con un código HTTP incorrecto. Normalmente es una aplicación degradada, una página de mantenimiento o una regla de balanceo mal aplicada."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#sonda-respuesta-invalida"
+          dashboard_url: "http://localhost:3000/d/noc-sondas"
+
+      - alert: TiempoDeRespuestaAlto
+        expr: probe_duration_seconds{job=~"blackbox-http|blackbox-dinamico"} > 1
+        for: 3m
+        labels:
+          severity: warning
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "{{ $labels.service }} tarda más de 1s en responder"
+          description: "Latencia de {{ $value }}s en la sonda hacia {{ $labels.instance }}. Síntoma habitual de saturación de recursos o de un problema de base de datos."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#tiempo-de-respuesta-alto"
+          dashboard_url: "http://localhost:3000/d/noc-sondas-latencia"
+
+      - alert: PuertoTCPInaccesible
+        expr: probe_success{job="blackbox-tcp"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "El puerto TCP de {{ $labels.service }} rechaza conexiones"
+          description: "El servidor rechaza la conexión en {{ $labels.instance }}. Diagnóstico de capa 4: proceso muerto, cortafuegos, o el servicio escuchando en otra dirección."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#puerto-tcp-inaccesible"
+          dashboard_url: "http://localhost:3000/d/noc-sondas"

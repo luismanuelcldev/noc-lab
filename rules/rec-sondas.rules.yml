@@ -1,0 +1,16 @@
+# Recording rules de las sondas de disponibilidad: latencia y tasa de éxito.
+# Validar: promtool check rules rules/rec-sondas.rules.yml
+groups:
+  - name: grabacion_sondas
+    interval: 15s
+    rules:
+      # Latencia en milisegundos. Los paneles muestran segundos, y a escala de
+      # milisegundos una cifra en segundos tiene un solo dígito significantemente útil.
+      - record: noc_sonda_latencia_ms
+        expr: probe_duration_seconds * 1000
+
+      # Trayectoria de disponibilidad: porcentaje de muestras exitosas en 1h. Sobre
+      # esta serie se puede definir un SLO, que es el paso previo a que exista
+      # cualquier informe de disponibilidad.
+      - record: noc_sonda_disponibilidad_porcentaje
+        expr: avg_over_time(probe_success{job=~"blackbox-http"}[1h]) * 100

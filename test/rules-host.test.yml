@@ -1,0 +1,75 @@
+# Tests de regresión de los recursos del host: pérdida de métricas y unidades de CPU.
+# Ejecutar: promtool test rules test/rules-host.test.yml
+#
+# SEMÁNTICA DE promtool QUE AFECTA A ESTOS TESTS:
+#   * Las rutas de rule_files se resuelven desde la UBICACIÓN de este fichero, por eso
+#     el "../". Y falla en silencio de verdad: si la ruta está mal, promtool carga CERO
+#     reglas, todos los "exp_alerts: []" negativos pasan por el motivo equivocado y el
+#     fichero entero parece correcto. Si dudas, comprueba que no sale un WARNING de
+#     "no file match pattern".
+#   * exp_labels y exp_annotations se comparan como CONJUNTOS COMPLETOS, no subconjuntos:
+#     si la alerta produce una etiqueta o anotación que el test no lista, falla. Por eso
+#     cada caso positivo lista las cuatro anotaciones, lo que además deja verificado y
+#     documentado el contrato de la alerta (texto, runbook, dashboard).
+#   * Una regla con rate() necesita DOS muestras para producir resultado, así que su
+#     "for" no empieza a contar hasta la segunda. Una alerta con for=15m sobre un rate()
+#     cuyos datos empiezan en t=0 no dispara hasta el minuto 17: por eso el límite de
+#     CPUHostAlta no es su "for".
+#   * La notación "Nx" coloca N muestras, pero la primera cae un intervalo más tarde que
+#     t=0. Importa en los tests que dependen de dónde PARA la serie (TargetHostCaido), y
+#     por eso ese usa valores explícitos.
+rule_files:
+  - ../rules/*.yml
+
+evaluation_interval: 1m
+
+tests:
+  # Valores explícitos en lugar de "1x6": este test depende de dónde PARA la serie, y
+  # la forma corta coloca la última muestra un intervalo más tarde. Con la última muestra
+  # en t=5m, la ventana de 5m la excluye en t=10m, absent_over_time se activa ahí y con
+  # su for de 3m dispara en t=13m.
+  #
+  # Las anotaciones se comprueban enteras porque el fallo original estaba justo ahí:
+  # absent_over_time() devuelve {job="node"} y nada más, así que un {{ $labels.instance }}
+  # en el mensaje salía vacío y se leía "Faltan métricas del host: " sin nada detrás.
+  - name: "TargetHostCaido: dispara cuando la serie deja de llegar, y no se inventa una instance"
+    interval: 1m
+    input_series:
+      - series: 'node_uname_info{job="node", instance="host:9100"}'
+        values: '1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: TargetHostCaido
+        exp_alerts: []
+      - eval_time: 13m
+        alertname: TargetHostCaido
+        exp_alerts:
+          - exp_labels: {severity: critical, service: host, job: node}
+            exp_annotations:
+              summary: "node_exporter no reporta métricas del equipo"
+              description: "El recolector `node` no produce ninguna muestra desde hace 5 minutos. Puede ser un equipo apagado, un reinicio, pérdida de red, un rascado congelado o un contenedor parado."
+              runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#target-host-caido"
+              dashboard_url: "http://localhost:3000/d/noc-objetivos"
+
+  # REGRESIÓN de unidades de CPU. El rate() de un contador de segundos de CPU devuelve
+  # NÚCLEOS. Con idle subiendo 6s por minuto, la CPU usada es del 90% y debe disparar;
+  # el negativo está en 15m y no en 14m porque rate() necesita dos muestras, así que el
+  # for de 15m solo empieza en el minuto 2 y dispara en el 17.
+  - name: "CPUHostAlta: 90% de uso dispara en 17m, y no antes"
+    interval: 1m
+    input_series:
+      - series: 'node_cpu_seconds_total{job="node", instance="host:9100", cpu="0", mode="idle"}'
+        values: '0+6x40'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: CPUHostAlta
+        exp_alerts: []
+      - eval_time: 17m
+        alertname: CPUHostAlta
+        exp_alerts:
+          - exp_labels: {severity: warning, service: host, instance: "host:9100"}
+            exp_annotations:
+              summary: "CPU de host:9100 al 90.0%"
+              description: "CPU sostenida por encima del 85% durante 15 minutos. Necesita intervención: revisa procesos, escala o reparte la carga."
+              runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#cpu-alta"
+              dashboard_url: "http://localhost:3000/d/noc-equipo-cpu"

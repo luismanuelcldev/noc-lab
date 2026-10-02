@@ -1,0 +1,50 @@
+# Recording rules: consultas precalculadas y guardadas como métricas nuevas, para
+# que el panel lea un resultado ya calculado en vez de reejecutar la expresión.
+# Ganan: latencia (una consulta pasa de segundos a milisegundos), coste (una
+# expresión cara se evalúa cada 30s en vez de miles de veces por minuto) y
+# consistencia (dos personas con ventanas distintas ven el mismo número).
+# El prefijo "noc_" marca lo calculado frente a lo observado por un agente.
+# Los nombres de métrica se quedan en español: son identificadores referenciados
+# desde los paneles, y renombrarlos no aporta nada funcional.
+# Validar: promtool check rules rules/rec-host.rules.yml
+groups:
+  - name: grabacion_host
+    interval: 30s   # el host no necesita resolución de 15s
+    rules:
+      # Porcentaje de CPU: 1 - (segundos idle / 1), es decir, lo que NO está idle.
+      # Sumar los modos (user + system + nice + ...) también funciona pero es más
+      # frágil: si el kernel añade un modo, la suma queda incompleta en silencio.
+      - record: noc_host_cpu_uso_porcentaje
+        expr: |
+          100 * (1 - avg by (instance) (
+            rate(node_cpu_seconds_total{job="node", mode="idle"}[2m])
+          ))
+
+      # Memoria usada desde "available", nunca desde "free". La diferencia importa:
+      # "free" ignora la caché, que Linux recupera bajo presión. Alertar sobre "free"
+      # produce páginas de falsos positivos; sobre "available", no.
+      - record: noc_host_memoria_uso_porcentaje
+        expr: |
+          100 * (1 - (
+            node_memory_MemAvailable_bytes{job="node"}
+              / node_memory_MemTotal_bytes{job="node"}
+          ))
+
+      # Porcentaje de disco por punto de montaje. El filtro de fstype es lo que
+      # evita el falso positivo clásico: casi todos los pseudo-sistemas de archivos
+      # reportan 0 bytes totales y añadirían particiones vacías al panel.
+      - record: noc_host_disco_uso_porcentaje
+        expr: |
+          100 * (1 - (
+            node_filesystem_avail_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|fuse.*|nsfs"}
+              / node_filesystem_size_bytes{job="node", fstype!~"tmpfs|overlay|squashfs|fuse.*|nsfs"}
+          ))
+
+      # Carga normalizada por número de núcleos. load1 > 1 no es un problema en sí:
+      # en una máquina de 32 núcleos, load1 = 8 es reposo. Dividir por el número de
+      # núcleos es lo que hace la métrica comparable entre máquinas distintas.
+      - record: noc_host_carga_normalizada
+        expr: |
+          node_load1{job="node"}
+            / on(instance) group_left
+              count by (instance) (node_cpu_seconds_total{job="node", mode="idle"})

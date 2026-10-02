@@ -1,0 +1,100 @@
+# Recursos del host: memoria, CPU, arranque y reloj.
+# Umbrales alineados con las alertas oficiales del mixin de node_exporter.
+# Validar: promtool check rules rules/host-recursos.rules.yml
+groups:
+  - name: recursos_host
+    rules:
+      # node_exporter no publica un "up" de señal vital: si el host muere la serie
+      # desaparece en vez de ir a 0, así que "up == 0" no sirve aquí. Y absent() a
+      # secas responde "ninguna serie coincide", indistinguible de "Prometheus acaba
+      # de arrancar y aún no ha rascado": en un reinicio eso da un crítico falso.
+      # absent_over_time() con ventana sí distingue: la serie existía y no actualiza
+      # hace 5 minutos. Una regla cubre pérdida total y scrapes congelados.
+      - alert: TargetHostCaido
+        expr: absent_over_time(node_uname_info{job="node"}[5m])
+        for: 3m
+        labels:
+          severity: critical
+          service: host
+        annotations:
+          # $labels.instance se omite a propósito: absent_over_time() devuelve
+          # {job="node"} y nada más, así que la variable saldría vacía.
+          summary: "node_exporter no reporta métricas del equipo"
+          description: "El recolector `node` no produce ninguna muestra desde hace 5 minutos. Puede ser un equipo apagado, un reinicio, pérdida de red, un rascado congelado o un contenedor parado."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#target-host-caido"
+          dashboard_url: "http://localhost:3000/d/noc-objetivos"
+
+      - alert: MemoriaHostAlta
+        expr: |
+          (1 - node_memory_MemAvailable_bytes{job="node"} / node_memory_MemTotal_bytes{job="node"}) * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+          service: host
+        annotations:
+          summary: "Memoria del equipo al {{ $value | printf \"%.1f\" }}%"
+          description: "Uso de memoria sostenido en {{ $labels.instance }}. Si continúa, el kernel empieza a usar swap y el equipo se va ralentizando."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#memoria-alta"
+          dashboard_url: "http://localhost:3000/d/noc-equipo-memoria"
+
+      # CUIDADO CON LAS UNIDADES, dos trampas que muerden: PromQL NO acepta
+      # sufijos de bytes en literales numéricos, así que "256MiB" no es sintaxis
+      # válida (el léxico solo conoce sufijos de duración) y un literal así hace
+      # caer TODO el grupo de reglas en silencio. La conversión divide en vez de
+      # multiplicar por un literal con sufijo, que es la forma sin ambigüedad.
+      - alert: HostSinMemoria
+        expr: (node_memory_MemAvailable_bytes{job="node"} / 1024 / 1024) < 256
+        for: 5m
+        labels:
+          severity: critical
+          service: host
+        annotations:
+          summary: "Memoria disponible por debajo de 256 MiB en {{ $labels.instance }}"
+          description: "El verdugo de OOM está a punto de actuar. Terminará un proceso sin aviso, normalmente el mayor, que no es necesariamente el culpable."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#host-sin-memoria"
+          dashboard_url: "http://localhost:3000/d/noc-equipo-memoria"
+
+      # node_cpu_seconds_total es un CONTADOR de segundos de CPU, así que rate()
+      # devuelve NÚCLEOS: 1.0 es un núcleo al 100%, 0.8 es el 80% de UN núcleo, no
+      # de la máquina. El porcentaje total exige dividir entre el número de núcleos,
+      # que es lo que hace la recording rule noc_host_cpu_uso_porcentaje.
+      - alert: CPUHostAlta
+        expr: |
+          (1 - avg by (instance) (rate(node_cpu_seconds_total{job="node", mode="idle"}[2m]))) * 100
+            > 85
+        for: 15m
+        labels:
+          severity: warning
+          service: host
+        annotations:
+          summary: "CPU de {{ $labels.instance }} al {{ $value | printf \"%.1f\" }}%"
+          description: "CPU sostenida por encima del 85% durante 15 minutos. Necesita intervención: revisa procesos, escala o reparte la carga."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#cpu-alta"
+          dashboard_url: "http://localhost:3000/d/noc-equipo-cpu"
+
+      - alert: HostReiniciado
+        expr: node_time_seconds{job="node"} - node_boot_time_seconds{job="node"} < 900
+        for: 1m
+        labels:
+          severity: info
+          service: host
+        annotations:
+          summary: "{{ $labels.instance }} se reinició hace menos de 15 minutos"
+          description: "Arranque detectado. Si no había ventana de cambio programada, es un reinicio no autorizado y debe investigarse."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#host-reiniciado"
+          dashboard_url: "http://localhost:3000/d/noc-equipo-red-reloj"
+
+      # Un reloj desviado rompe la correlación entre logs, métricas y trazas, que
+      # es la razón de ser del monitorización, y también la trazabilidad de la que
+      # depende una revisión de incidente.
+      - alert: RelojDesincronizado
+        expr: abs(node_timex_offset_seconds{job="node"}) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: host
+        annotations:
+          summary: "Desfase de reloj de {{ $value }}s en {{ $labels.instance }}"
+          description: "El reloj está a más de 50ms del servidor NTP. Corrompe la correlación temporal entre métricas, logs y trazas de auditoría."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#reloj-desincronizado"
+          dashboard_url: "http://localhost:3000/d/noc-equipo-red-reloj"

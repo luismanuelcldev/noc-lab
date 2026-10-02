@@ -1,0 +1,84 @@
+# Metaservicio: el propio sistema de monitorización.
+# Validar: promtool check rules rules/metaservicio.rules.yml
+# Estas 5 alertas se evaluan de las últimas a propósito: si la monitorización cae,
+# son las únicas que siguen apareciendo.
+groups:
+  - name: metaservicio
+    rules:
+      # Sin "for:": debe dispararse siempre. Notificarla como [RESOLVED] significa
+      # que Prometheus dejó de evaluar reglas, y con ellas se congela todo lo demás.
+      - alert: LatidoDeMonitorizacion
+        expr: vector(1)
+        labels:
+          severity: info
+          service: monitoring
+          always_firing: "true"
+        annotations:
+          summary: "El latido del sistema de monitorización está activo"
+          description: "Debe estar siempre en [FIRING]. Si aparece como [RESOLVED], Prometheus ha dejado de evaluar reglas."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#latido-de-monitorizacion"
+          dashboard_url: "http://localhost:3000/d/noc-estado"
+
+      - alert: PrometheusSinScrapear
+        expr: up{job="prometheus"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          service: monitoring
+        annotations:
+          summary: "Prometheus no se está rascando a sí mismo"
+          description: "Sin raspados no hay métricas nuevas ni evaluación de reglas. Todo el sistema de monitorización está congelado."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#prometheus-sin-scrapear"
+          dashboard_url: "http://localhost:3000/d/noc-estado"
+
+      # up == 0 es un fallo del CAMINO (red, DNS, autenticación), no del servicio
+      # observado: confundirlos es el error de diagnóstico más habitual en un NOC.
+      # La lista de jobs es explícita a propósito: lo que no está en la lista no se rasca.
+      - alert: TargetCaido
+        expr: up{job=~"node|cadvisor|blackbox-http|blackbox-tcp|blackbox-dinamico|alertmanager"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: monitoring
+        annotations:
+          summary: "Objetivo de raspado inaccesible: {{ $labels.job }}"
+          description: "Fallo de CAMINO hacia {{ $labels.instance }} (del `job` {{ $labels.job }}). Revisa red, DNS y que el contenedor esté vivo. Si el equipo está caído, esta alerta la inhibe TargetHostCaido."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#target-caido"
+          dashboard_url: "http://localhost:3000/d/noc-objetivos"
+
+      # Alerta propia y no un caso más de TargetCaido: el puente ES el camino que
+      # recorren las notificaciones. Si muere, todo lo demás parece sano, las alertas
+      # siguen disparando y NADIE las recibe: el único fallo que silencia la alarma
+      # sin encender ningún otro indicador.
+      - alert: BridgeNotificacionInaccesible
+        expr: up{job="ntfy-bridge"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: monitoring
+        annotations:
+          summary: "El puente de notificaciones no responde"
+          description: "Prometheus no puede leer métricas de ntfy-bridge en {{ $labels.instance }}. Las alertas se siguen evaluando pero NADIE las recibirá mientras esto dure. Máxima prioridad."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#bridge-inaccesible"
+          dashboard_url: "http://localhost:3000/d/noc-puente"
+
+      # "== bool 0" ES OBLIGATORIO. Una comparación SIN "bool" no es un test, es un
+      # FILTRO: devuelve las muestras iguales a 0 con SU valor original, la agregación
+      # da max() == 0 y "> 0" es 0 > 0, siempre falso. La alerta no fallaba ni erraba:
+      # sencillamente nunca podía dispararse. Una alerta de canal muerto que no suena
+      # es peor que no tenerla, porque aparenta cubrir esa falla.
+      - alert: CanalNotificacionCaido
+        expr: max by (sink) (ntfy_bridge_delivery_success == bool 0) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: monitoring
+        annotations:
+          summary: "Fallo de entrega sostenido en el destino: {{ $labels.sink }}"
+          description: "El puente de notificaciones no puede entregar al destino '{{ $labels.sink }}'. Si ocurre durante un incidente real, la alerta nunca llegará a una persona."
+          runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#canal-notificacion-caido"
+          dashboard_url: "http://localhost:3000/d/noc-puente"
+
+      # RETIRADA: AusenciaDeMetricas, comparaba time() con
+      # node_textfile_mtime_seconds. El motivo y el caso que la cubre hoy están en
+      # docs/ALERTS-RETIRED.md.

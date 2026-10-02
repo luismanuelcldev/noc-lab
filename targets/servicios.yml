@@ -1,0 +1,27 @@
+# ===========================================================================
+#  INVENTARIO DINAMICO DE OBJETIVOS (file_sd)
+# ===========================================================================
+#  Prometheus vuelve a leer este fichero cada 60s (refresh_interval, en
+#  prometheus.yml) sin necesidad de reiniciar. Anadir un objetivo significa
+#  editar este YAML.
+#
+#  Este fichero es el "inventario" del laboratorio: simula el catalogo de
+#  servicios que en produccion vendrian del CMDB, de un portal de autoservicio o
+#  de un sistema de gestion de cambios.
+#
+#  Etiquetas disponibles y su significado:
+#    __address__  -> host:puerto que se sondea (se sobrescribe en el relabeling)
+#    instance     -> identidad legible para la alerta
+#    service      -> nombre del servicio. OBLIGATORIA: sin ella el enrutado de
+#                    Alertmanager por equipo no funciona.
+#    team         -> equipo responsable
+#    environment  -> entorno (lab / preprod / prod)
+#    tier         -> criticidad del servicio (1 = la mas critica)
+# ===========================================================================
+
+- targets: ["http://demo-app:80"]
+  labels:
+    service: "web-frontal"
+    team: "backend"
+    environment: "lab"
+    tier: "1"

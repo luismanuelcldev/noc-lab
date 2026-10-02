@@ -1,0 +1,92 @@
+# Tests de regresión del metaservicio: latido, rascado del propio Prometheus y objetivos.
+# Los tests de los canales de salida (CanalNotificacionCaido) viven aparte, en
+# test/rules-canales.test.yml: cubren el mismo módulo de reglas pero otra preocupación,
+# y juntos no caben en un fichero de 100 líneas.
+# Ejecutar: promtool test rules test/rules-metaservicio.test.yml
+#
+# SEMÁNTICA DE promtool QUE AFECTA A ESTOS TESTS:
+#   * Las rutas de rule_files se resuelven desde la UBICACIÓN de este fichero, por eso
+#     el "../". Y falla en silencio de verdad: si la ruta está mal, promtool carga CERO
+#     reglas, todos los "exp_alerts: []" negativos pasan por el motivo equivocado y el
+#     fichero entero parece correcto. Si dudas, comprueba que no sale un WARNING de
+#     "no file match pattern".
+#   * exp_labels y exp_annotations se comparan como CONJUNTOS COMPLETOS, no subconjuntos:
+#     si la alerta produce una etiqueta o anotación que el test no lista, falla. Por eso
+#     cada caso positivo lista las cuatro anotaciones, lo que además deja verificado y
+#     documentado el contrato de la alerta (texto, runbook, dashboard).
+#   * Una alerta con "for: Xm" dispara EN el minuto X, no después. El negativo va en X-1.
+rule_files:
+  - ../rules/*.yml
+
+evaluation_interval: 1m
+
+tests:
+  # El latido tiene que estar en [FIRING] desde el primer segundo. Si tuviera un "for",
+  # existiría una ventana de arranque en la que Prometheus podría estar muerto sin que
+  # nadie se entere, que es justo lo que existe para evitar.
+  - name: "LatidoDeMonitorizacion: dispara en t=0 sin margen y con su juego completo de etiquetas"
+    interval: 1m
+    alert_rule_test:
+      - eval_time: 0m
+        alertname: LatidoDeMonitorizacion
+        exp_alerts:
+          - exp_labels: {severity: info, service: monitoring, always_firing: "true"}
+            exp_annotations:
+              summary: "El latido del sistema de monitorización está activo"
+              description: "Debe estar siempre en [FIRING]. Si aparece como [RESOLVED], Prometheus ha dejado de evaluar reglas."
+              runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#latido-de-monitorizacion"
+              dashboard_url: "http://localhost:3000/d/noc-estado"
+
+  # "for: 3m" existe para que un solo rascado fallido no genere una página. Se
+  # comprueba el instante justo antes y el instante en que se cumple: un test que solo
+  # mirase "después" pasaría con cualquier valor de for.
+  - name: "PrometheusSinScrapear: respeta su for de 3m, ni un raspado antes ni después"
+    interval: 1m
+    input_series:
+      - series: 'up{job="prometheus", instance="localhost:9090"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: PrometheusSinScrapear
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: PrometheusSinScrapear
+        exp_alerts:
+          - exp_labels: {severity: critical, service: monitoring, job: prometheus, instance: "localhost:9090"}
+            exp_annotations:
+              summary: "Prometheus no se está rascando a sí mismo"
+              description: "Sin raspados no hay métricas nuevas ni evaluación de reglas. Todo el sistema de monitorización está congelado."
+              runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#prometheus-sin-scrapear"
+              dashboard_url: "http://localhost:3000/d/noc-estado"
+
+  # La lista de jobs es explícita a propósito. Este test fija esa decisión: un job
+  # añadido al stack y no añadido a la lista queda fuera de cobertura, y eso es
+  # exactamente lo que hay que revisar cada vez que se añade un servicio.
+  - name: "TargetCaido: un job fuera de la lista no produce alerta"
+    interval: 1m
+    input_series:
+      - series: 'up{job="demo-app", instance="demo-app:80"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: TargetCaido
+        exp_alerts: []
+
+  - name: "TargetCaido: un job de la lista caído dispara al cumplirse su for de 2m"
+    interval: 1m
+    input_series:
+      - series: 'up{job="alertmanager", instance="alertmanager:9093"}'
+        values: '0x10'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: TargetCaido
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: TargetCaido
+        exp_alerts:
+          - exp_labels: {severity: warning, service: monitoring, job: alertmanager, instance: "alertmanager:9093"}
+            exp_annotations:
+              summary: "Objetivo de raspado inaccesible: alertmanager"
+              description: "Fallo de CAMINO hacia alertmanager:9093 (del `job` alertmanager). Revisa red, DNS y que el contenedor esté vivo. Si el equipo está caído, esta alerta la inhibe TargetHostCaido."
+              runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#target-caido"
+              dashboard_url: "http://localhost:3000/d/noc-objetivos"

@@ -1,0 +1,87 @@
+# ===========================================================================
+#  SCRAPE - sondas sinteticas a traves de blackbox_exporter
+# ===========================================================================
+#  Validate:  promtool check config prometheus.yml
+#
+#  El patron "probe": Prometheus NO llama al objetivo. Delega la
+#  sonda en blackbox_exporter y reetiqueta la respuesta para que cada objetivo conserve su
+#  propia identidad:
+#    1. __address__     = http://target:80        (de donde se raspa)
+#    2. __param_target  = http://target:80        (que se sondea)
+#    3. instance        = http://target:80        (identidad legible en alertas)
+#    4. __address__     = blackbox-exporter:9115  (a quien se sondea de verdad)
+# ===========================================================================
+
+# -- 1. blackbox - sondeo HTTP ---------------------------------------------
+scrape_configs:
+  - job_name: "blackbox-http"
+    metrics_path: /probe
+    params:
+      module: [http_canary]         # ver blackbox.yml
+    static_configs:
+      - targets:
+          - "http://demo-app:80"
+        labels:
+          # service es OBLIGATORIA: alimenta el enrutado por equipo de Alertmanager y
+          # aparece en la notificacion. Sin ella la alerta llega sin asignar.
+          service: "web-frontal"
+          component: "application"
+          team: "backend"
+          environment: "lab"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # -- 2. blackbox - sondeo TCP ----------------------------------------------
+  # TCP responde a "se aceptan conexiones?" incluso cuando la aplicacion que hay
+  # detras esta fallando. Es la primera capa de diagnostico de un servicio.
+  - job_name: "blackbox-tcp"
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets: ["demo-app:80"]
+        labels:
+          service: "web-frontal"
+          component: "application"
+          team: "backend"
+          environment: "lab"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # -- 3. Descubrimiento dinamico de objetivos --------------------------------------------
+  #   En produccion los objetivos no son estaticos: cambian con cada despliegue.
+  # Mantenerlos en ficheros YAML que Prometheus relee solo (file_sd) es la
+  #   diferencia entre mantener el stack y mantenerlo en escala.
+  #
+  #   El glob es ../targets/*.yml porque las rutas de file_sd se resuelven contra el
+  #   directorio de ESTE fichero, no contra la configuracion principal. Escrito como
+  #   targets/*.yml no coincidia con nada, y promtool solo lo decia en un aviso
+  #   mientras el trabajo aparecia sano con cero objetivos.
+  - job_name: "blackbox-dinamico"
+    metrics_path: /probe
+    params:
+      module: [http_canary]
+    file_sd_configs:
+      - files: ["../targets/*.yml"]
+        refresh_interval: 60s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - source_labels: [team]        # arrastra las etiquetas del fichero de inventario
+        target_label: team
+      - source_labels: [service]
+        target_label: service
+      - target_label: __address__
+        replacement: blackbox-exporter:9115

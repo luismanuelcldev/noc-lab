@@ -1,0 +1,48 @@
+# Recording rules por contenedor: CPU en núcleos y memoria en porcentaje del límite.
+# Validar: promtool check rules rules/rec-contenedores.rules.yml
+groups:
+  - name: grabacion_contenedores
+    interval: 30s
+    rules:
+      # CPU por contenedor en NÚCLEOS, precalculada porque el sum-by + rate original
+      # es una de las consultas más caras del stack.
+      - record: noc_contenedor_cpu_nucleos
+        # cAdvisor NO publica una etiqueta "container_name" (comprobado contra la
+        # v0.55.1 real); la que identifica es "name". Con container_name la consulta
+        # no da error: simplemente no devuelve nada y la serie muere en silencio.
+        # Sin filtro mode!="idle": bajo cgroup v2 esa etiqueta ya no existe en las
+        # métricas de contenedor (la que hay es cpu="total"), así que era un resto de
+        # cgroup v1. Prometheus tolera la etiqueta ausente sin romperse, pero el
+        # filtro afirma algo falso sobre los datos. En node-exporter "mode" sí existe
+        # y ahí el filtro sí tiene sentido.
+        expr: |
+          sum by (name) (
+            rate(container_cpu_usage_seconds_total{job="cadvisor", name!=""}[2m])
+          )
+
+      # Memoria del contenedor como porcentaje de su límite asignado.
+      # working_set_bytes es la cifra que el kernel usa para decidir cuándo aplicar el
+      # verdugo de OOM, así que es la comparable con el límite.
+      - record: noc_contenedor_memoria_porcentaje
+        # Mismo criterio que la alerta ContenedorUsoMemoriaAlto: el denominador
+        # exige limit > 0. Sin ese filtro, working_set / 0 es +Inf y la serie se
+        # llena de infinitos que rompen el eje del panel. Un contenedor sin límite no
+        # es expresable como porcentaje, y lo correcto es que no entre en la serie.
+        #
+        # El "max by (name)" a ambos lados NO es cosmético: cAdvisor a veces emite el
+        # mismo contenedor dos veces con conjuntos de etiquetas distintos (mismo id,
+        # uno con container_label_restartcount y otro sin). Con dos series
+        # compartiendo name, "on(name)" pasa a ser muchos-a-muchos, Prometheus da
+        # error y la regla deja de registrar ABSOLUTAMENTE NADA: no solo el
+        # contenedor duplicado, el panel entero se queda en blanco. Agregar primero
+        # deja una serie por contenedor e inmuniza la regla contra ese defecto.
+        expr: |
+            100 * (
+              max by (name) (
+                container_memory_working_set_bytes{job="cadvisor", name!=""}
+              )
+                / on(name)
+                  max by (name) (
+                    container_spec_memory_limit_bytes{job="cadvisor", name!=""} > 0
+                  )
+            )
