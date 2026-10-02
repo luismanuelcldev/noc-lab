@@ -4,9 +4,9 @@
 # automaticamente; sin el, se aplican estos valores por defecto.
 #
 # Un servicio por fichero, en compose/. Cada uno cabe en una pantalla y se lee
-# sin Scandinavia por el resto. compose/_base.yml NO se incluye a proposito: solo
-# existe como fuente para `extends`, e incluirlo anadiria al proyecto un servicio
-# `default` sin imagen que Compose no puede validar.
+# sin tener que abrir los demas. compose/_base.yml NO se incluye a proposito:
+# solo existe como fuente para `extends`, e incluirlo anadiria al proyecto un
+# servicio `default` sin imagen que Compose no puede validar.
 include:
   # Redes y volumenes compartidos por todos los servicios.
   - path: ./compose/_red.yml
