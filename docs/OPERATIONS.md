@@ -32,6 +32,76 @@ es deliberado y no el estándar: evita chocar con un ntfy que ya esté escuchand
 desde otra máquina no es alcanzable ninguno; mira [seguridad](SECURITY.md) para entender por
 qué las redes no están marcadas como internas y por qué eso aquí no es un problema.
 
+<a id="tres-decisiones-que-no-se-degradan"></a>
+
+## Tres decisiones que no se degradan
+
+Las nueve imágenes están clavadas y tres de esos pines no son arbitrarios. El riesgo de
+"arreglarlos" por probar es que no se ve una caída: se ve un cuadro de mando que dice "No data" o
+una alerta que se dispara sola. Eso es peor que un fallo, porque no se nota.
+
+<a id="cadvisor-clavado"></a>
+
+### cAdvisor está clavado en v0.55.1
+
+Es la versión más antigua que lee contenedores con Docker 28 y posteriores. Con la anterior
+(v0.52.1) cAdvisor ve los contenedores a través de la API pero no consigue asociarles métricas: el
+objetivo aparece `up` y todas las series `container_*` existen, pero cada una mide solo el cgroup
+raíz. El panel de contenedores se lee entero como "No data" y ningún *health check* se queja,
+porque técnicamente todo está bien.
+
+Lo comprobé sobre Docker 29.5.3: v0.52.1 da 1 serie y v0.55.1 da 9. Esa diferencia es la prueba de
+que el fallo es de asociación y no de visibilidad. **No bajo el pin sin repetir esa misma
+comparación con la versión que quiero probar.**
+
+<a id="exclusiones-node-exporter"></a>
+
+### La lista de exclusiones de node-exporter se repite entera
+
+`--collector.filesystem.*-exclude` **sustituye** la lista por defecto de node-exporter, no la
+amplía. Por eso la lista completa se repite tal cual en todos los servicios que la necesitan:
+dejar una entrada fuera reintroduce en silencio una métrica que el exportador excluye por un
+motivo concreto.
+
+De esa lista, `9p`, `drvfs` y `rootfs` están porque son montajes de solo lectura de la máquina
+anfitriona y aparecían siempre en las métricas de disco. La alerta de disco casi lleno se
+disparaba sola, contra su propio sistema de archivos. Una alerta que suena sin motivo es peor que
+no tenerla, porque enseña al equipo a ignorar esa alerta concreta. Corregirlo en el origen, en el
+`exclude` y no en la alerta, además mantiene honesto el cuadro de recursos del equipo.
+
+<a id="etiquetas-externas-prometheus"></a>
+
+### Etiquetas externas al ejecutar Prometheus fuera de Docker
+
+Las `external_labels` de [prometheus.yml](../prometheus.yml) son lo que mantiene separados los
+entornos: sin ellas un solo Alertmanager mezclaría las notificaciones de todos. Sus dos valores
+son `${NOC_MONITOR_NAME}` y `${NOC_ENVIRONMENT}`, y están así a propósito, porque Prometheus nunca
+expande variables de entorno en un fichero de configuración: sin intervención, el texto
+`${NOC_MONITOR_NAME}` llegaría tal cual a la etiqueta.
+
+Con Docker no hay que hacer nada. `docker/prometheus-entrypoint.sh` valida ambas variables,
+sustituye los marcadores y arranca Prometheus con `prometheus.rendered.yml`, generado en
+`/etc/prometheus` y no en `/tmp` a propósito: `rule_files` y `scrape_config_files` son rutas
+relativas que Prometheus resuelve contra el directorio de configuración, así que un fichero
+generado en `/tmp` arrancaría sin reglas y sin ningún aviso. El script aborta si falta una
+variable o si queda algún `${` sin sustituir, y con eso un fallo silencioso se vuelve visible.
+
+Ejecutar Prometheus fuera de Docker significa hacer esa sustitución a mano. El fichero generado
+tiene que quedar **junto a `prometheus.yml`**, por el mismo motivo de las rutas relativas, y desde
+la raíz del repositorio:
+
+```sh
+sed -e "s|\${NOC_MONITOR_NAME}|$NOC_MONITOR_NAME|" \
+    -e "s|\${NOC_ENVIRONMENT}|$NOC_ENVIRONMENT|" \
+    prometheus.yml > prometheus.rendered.yml
+prometheus --config.file=prometheus.rendered.yml
+```
+
+`prometheus.rendered.yml` no está en `.gitignore`, así que hay que borrarlo en cuanto se termine.
+Si se apunta directamente a `prometheus.yml`, Prometheus arranca sin error y las alertas salen
+con la etiqueta literal `${NOC_MONITOR_NAME}`: llegan, se leen, y no se pueden separar por
+entorno.
+
 ## Comandos del día a día
 
 Todo pasa por `make`, un atajo de `docker compose`. Los objetivos están en el propio
