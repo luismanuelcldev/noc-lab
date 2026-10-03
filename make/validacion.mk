@@ -19,6 +19,9 @@ test: rules ## Ejecuta los casos de regresion de reglas
 bridge: ## Tests unitarios del puente (solo biblioteca estandar)
 	$(PYTHON) -m unittest discover -s ntfy-bridge -q
 
+validadores: ## Tests unitarios de los validadores
+	$(PYTHON) -m unittest discover -s scripts -p 'test_*.py' -q
+
 config: ## Valida los dos ficheros compose sin arrancar nada
 	$(COMPOSE) config --quiet && echo "docker-compose.yml es valido"
 	$(COMPOSE_DESKTOP) config --quiet && echo "docker-compose.desktop.yml es valido"
@@ -33,7 +36,7 @@ lint: ## Analisis estatico
 fmt: ## Comprobacion de formato; no cambia nada
 	$(PYTHON) -m ruff format --check .
 
-ci: config rules test config-services bridge lint fmt check ## Todo lo que ejecuta la CI
+ci: config rules test config-services bridge validadores lint fmt check ## Todo lo que ejecuta la CI
 
 # La unica comprobacion que NO esta en `ci`, y por que. Las 53 expresiones se
 # ejecutan contra un Prometheus vivo, y un Prometheus recien arrancado no tiene

@@ -1,9 +1,7 @@
 # ===========================================================================
 #  Integracion continua. Los pasos detallan que ejecuta `make ci` en vez de llamar a
 #  make: si la CI llamara a make, un error de sintaxis en el Makefile seria un fallo de
-#  CI mezclado con un fallo de codigo real. Ninguno necesita el stack en marcha: una CI
-#  que levanta nueve contenedores para comprobar que la documentacion esta bien es una
-#  CI que falla por su propia complejidad. El compose se valida en compose.yml.
+#  CI mezclado con un fallo de codigo real. Ninguno necesita el stack en marcha.
 # ===========================================================================
 name: ci
 
@@ -41,9 +39,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      # El puente no tiene dependencias, solo biblioteca estandar, asi que no hay nada
-      # que instalar. ruff queda fijado a la version del hook de pre-commit, que es lo
-      # que hace que este check y el local sean el mismo check.
+      # El puente solo usa biblioteca estandar, asi que no hay nada que instalar. ruff
+      # queda fijado a la version del hook de pre-commit: el check y el local son el mismo.
       - name: Instalar ruff
         run: pip install ruff==0.8.4
 
@@ -69,8 +66,10 @@ jobs:
             -v "$PWD:/w:ro" -w /w prom/alertmanager:v0.34.1 \
             check-config alertmanager.yml
 
-      - name: Ejecutar las pruebas del puente
-        run: python -m unittest discover -s ntfy-bridge -q
+      - name: Ejecutar las pruebas unitarias
+        run: |
+          python -m unittest discover -s ntfy-bridge -q
+          python -m unittest discover -s scripts -p "test_*.py" -q
 
       - name: Analisis estatico
         run: ruff check .
@@ -83,8 +82,8 @@ jobs:
       - name: Validadores del repositorio
         run: python scripts/check.py --strict
 
-      # Comprobar que .env no existe vale casi nada: esta en .gitignore, asi que nunca
-      # aparece en una copia de la CI. Lo que si vale es escanear lo que esta versionado.
+      # .env no puede aparecer en la copia de la CI (esta en .gitignore); lo que si vale
+      # es escanear lo que esta versionado.
       - name: Buscar secretos con gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:

@@ -9,8 +9,7 @@ Que caza y que no, para no prometer mas de lo que da:
 
   - si: parentesis sin cerrar, una funcion que no existe, un selector mal formado.
   - no: una metrica renombrada. `rate(node_network_recieve_bytes[5m])` es PromQL
-    valido y promtool lo acepta, porque en PromQL un nombre de metrica es una
-    cadena. Eso solo se ve preguntando a un Prometheus que la tenga: `check-datos`.
+    valido; solo se ve preguntando a un Prometheus que la tenga: `check-datos`.
 """
 
 from __future__ import annotations
@@ -65,9 +64,11 @@ def check_promql() -> int:
     with tempfile.TemporaryDirectory() as temporal:
         ruta = Path(temporal) / "expresiones.rules.yml"
         ruta.write_text(reglas_sinteticas([e for _, e in pares]), encoding="utf-8")
-        # El argumento del promtool es la ruta de dentro del contenedor, donde solo
-        # existe /t. El docker de Windows acepta barras invertidas en -v, pero lo que
-        # promtool ve tiene que existir donde promtool mira.
+        # El temporal nace en 0700 y promtool corre como nobody dentro del contenedor:
+        # sin esto su stat falla con "permission denied". En Windows no hay modo, por eso
+        # esto solo se ve en la CI. El montaje es del directorio, no del fichero.
+        ruta.chmod(0o644)
+        ruta.parent.chmod(0o755)
         hecho = _promtool(ruta.parent, ruta.name)
     for indice, detalle in FALLO.findall(hecho):
         error(f"{pares[int(indice) - 1][1]}: {detalle.strip()}")
