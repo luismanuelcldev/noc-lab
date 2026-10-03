@@ -35,14 +35,24 @@ configurarse. Este repositorio es esa cadena: métricas, reglas, enrutado, entre
 | 5 | Cerrar el bucle con una notificación real, no solo algo visual | [`docs/PROJECT.md`](docs/PROJECT.md#la-alerta-tiene-que-llegar-a-una-persona) |
 
 ```
-  1. RECOGER          2. EVALUAR            3. ALERTAR    4. ENRUTAR      5. NOTIFICAR
-  +-------------+     +---------------+     +---------+   +-----------+   +-----------+
-  | exportadores|     | alert.rules   |     | severity|-->| routing   |-->| una pers. |
-  | + sondas    |---->| 22 reglas     |---->| + for:  |   | + grouping|   | en un     |
-  | equipo, ctn.|     | 8 recordings  |     | + labels|   | + inhibit.|   | canal real|
-  | + sintética |     +---------------+     +---------+   +-----------+   +-----------+
-  +-------------+                                                        vía ntfy-bridge
-                                                                          (Python, 1 destino)
+  1. RECOGER      3 exportadores, 8 objetivos
+     node-exporter, cAdvisor, blackbox-exporter
+        |
+        v
+  2. EVALUAR      22 reglas en 5 grupos, 8 recordings
+     21 de 22 con for:, la más lenta 30m
+        |
+        v
+  3. ALERTAR      severity + service + always_firing
+     LatidoDeMonitorizacion, siempre activa
+        |
+        v
+  4. ENRUTAR      5 receptores, 4 inhibiciones
+     0 silencios; agrupa lo que salta junto
+        |
+        v
+  5. NOTIFICAR    ntfy-bridge (Python, 1 destino)
+     entrega a ntfy con la prioridad correcta
 ```
 
 El puente tiene un único destino, ntfy, y lo declara en su propio estado: `"sinks": ["ntfy"]`.
