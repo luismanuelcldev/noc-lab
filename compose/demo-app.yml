@@ -1,15 +1,6 @@
-# demo-app: Objetivo sintetico de las sondas blackbox. No publicado.
-# Definido en este fichero e inyectado por docker-compose.yml; los anchors
-# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+# Objetivo sintetico de las sondas blackbox. No se publica: un objetivo de sonda
+# es interno por definicion y exponerlo solo anadiria superficie de ataque.
 services:
-
-
-  # =========================================================================
-  # 1. SYNTHETIC TARGET
-  # =========================================================================
-  # Fictitious business service used as the blackbox probe target. Not
-  # published: a probe target is internal by definition, and exposing it would
-  # only add attack surface.
   demo-app:
     image: nginx:1.31-alpine
     container_name: noc-demo-app

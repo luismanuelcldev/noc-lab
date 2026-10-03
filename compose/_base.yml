@@ -1,9 +1,10 @@
-# Politica comun a todos los servicios, replicada por `extends`.
-# Un servicio `default` no se levanta nunca: solo existe para heredarse.
+# Politica comun a todos los servicios, replicada por `extends`: el servicio
+# `default` no se levanta nunca, solo existe para heredarse. Cada fichero de
+# compose/ se incluye desde docker-compose.yml, y los anchors YAML no sobreviven a
+# un include, de ahi `extends` en lugar de `<<: *hardening`.
 services:
   default:
-    # Sin esto el driver json-file crece hasta llenar el disco del host,
-    # que es una forma muy habitual de provocar una caída.
+    # Sin esto el driver json-file llena el disco del host: una caída habitual.
     restart: unless-stopped
     logging:
       driver: json-file

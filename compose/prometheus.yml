@@ -1,12 +1,5 @@
-# prometheus: Fuente de verdad. TSDB persistente y reglas grabadas.
-# Definido en este fichero e inyectado por docker-compose.yml; los anchors
-# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+# Fuente de verdad. TSDB persistente y reglas grabadas.
 services:
-
-
-  # =========================================================================
-  # 5. PROMETHEUS - scraping, rule evaluation and TSDB
-  # =========================================================================
   prometheus:
     image: prom/prometheus:v3.15.0
     container_name: noc-prometheus
@@ -24,24 +17,23 @@ services:
       - ../docker/prometheus-entrypoint.sh:/usr/local/bin/render-config.sh:ro
       - prometheus-data:/prometheus
     environment:
-      # Consumed by docker/prometheus-entrypoint.sh to render the external labels.
+      # Consumidas por docker/prometheus-entrypoint.sh para renderizar las etiquetas externas.
       NOC_MONITOR_NAME: ${NOC_MONITOR_NAME:-mi-noc}
       NOC_ENVIRONMENT: ${NOC_ENVIRONMENT:-lab}
-    # The entrypoint substitutes the config variables and then execs Prometheus
-    # with whatever is in "command:".
+    # El entrypoint genera prometheus.rendered.yml y arranca Prometheus con lo de `command:`.
     entrypoint: ["/bin/sh", "/usr/local/bin/render-config.sh"]
     command:
       - --config.file=/etc/prometheus/prometheus.rendered.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=${PROM_RETENTION_TIME:-15d}
       - --storage.tsdb.retention.size=${PROM_RETENTION_SIZE:-5GB}
-      - --web.enable-lifecycle      # reload rules without restarting
+      - --web.enable-lifecycle      # recarga reglas sin reiniciar
       - --web.listen-address=0.0.0.0:9090
       - --log.level=info
-      - --log.format=logfmt        # parseable by a log aggregator
+      - --log.format=logfmt        # parseable por un agregador de logs
     depends_on:
       cadvisor:
-        condition: service_started   # exposes no healthcheck
+        condition: service_started   # no expone healthcheck
       node-exporter:
         condition: service_healthy
       blackbox-exporter:
@@ -57,4 +49,4 @@ services:
         limits:
           cpus: "1.00"
           memory: 1G
-    stop_grace_period: 30s           # compacts and closes the TSDB cleanly
+    stop_grace_period: 30s           # compacta y cierra el TSDB limpiamente

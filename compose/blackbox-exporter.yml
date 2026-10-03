@@ -1,14 +1,5 @@
-# blackbox-exporter: Sondas sinteticas. Prometheus no llama al objetivo, delega y reetiqueta.
-# Definido en este fichero e inyectado por docker-compose.yml; los anchors
-# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+# Sondas sinteticas. Prometheus no llama al objetivo: delega y reetiqueta.
 services:
-
-
-  # =========================================================================
-  # 4. blackbox_exporter - synthetic probes
-  # =========================================================================
-  # Implements the "probe" pattern: Prometheus does not call the target, it
-  # delegates to blackbox and relabels the result.
   blackbox-exporter:
     image: prom/blackbox-exporter:v0.28.0
     container_name: noc-blackbox-exporter

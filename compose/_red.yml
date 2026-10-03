@@ -4,8 +4,7 @@ networks:
   edge:
     name: noc-edge
     driver: bridge
-  # Capa de instrumentacion: exporters, Alertmanager y el puente.
-  # Ningun puerto de esta red se publica al host.
+  # Capa de instrumentacion: exporters, Alertmanager y el puente, sin puertos publicados al host.
   mesh:
     name: noc-mesh
     driver: bridge
