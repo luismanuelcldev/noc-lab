@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Descargar el codigo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Historial entero: gitleaks escanea <commit>^..<commit> y con el shallow
           # por defecto ese padre no existe, que es un fallo suyo disfrazado de fuga.
