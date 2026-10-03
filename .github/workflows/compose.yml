@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Descargar el codigo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # `config --quiet` no arranca nada: solo resuelve los ficheros, comprueba que
       # las variables existen y que los montajes son coherentes. Si un volumen
