@@ -11,8 +11,7 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Cancela una ejecucion anterior del mismo ref cuando llega otra mas nueva: dos
-# commits seguidos no necesitan dos esperas.
+# Cancela la ejecucion anterior del mismo ref: dos commits seguidos, una espera.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -33,6 +32,10 @@ jobs:
     steps:
       - name: Descargar el codigo
         uses: actions/checkout@v4
+        with:
+          # Historial entero: gitleaks escanea <commit>^..<commit> y con el shallow
+          # por defecto ese padre no existe, que es un fallo suyo disfrazado de fuga.
+          fetch-depth: 0
 
       - name: Preparar Python
         uses: actions/setup-python@v5
@@ -58,8 +61,7 @@ jobs:
             -v "$PWD:/w:ro" -w /w prom/prometheus:v3.15.0 \
             test rules test/*.test.yml
 
-      # amtool valida el enrutado de Alertmanager: que las rutas apunten a receivers que
-      # existen y que las inhibiciones sean coherentes. Sin esto un error no se ve.
+      # amtool valida el enrutado: rutas que apunten a receivers que existen. Sin esto no se ve.
       - name: Validar el enrutado de Alertmanager
         run: |
           docker run --rm --entrypoint amtool \
@@ -82,8 +84,7 @@ jobs:
       - name: Validadores del repositorio
         run: python scripts/check.py --strict
 
-      # .env no puede aparecer en la copia de la CI (esta en .gitignore); lo que si vale
-      # es escanear lo que esta versionado.
+      # .env no puede aparecer en la copia de la CI; lo que si vale es escanear lo versionado.
       - name: Buscar secretos con gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
