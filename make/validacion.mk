@@ -1,11 +1,9 @@
 # Validacion. Ninguno de estos targets necesita el stack en marcha, y es
 # deliberado: una CI que levanta nueve contenedores para comprobar que la
 # documentacion esta bien es una CI que falla por su propia complejidad.
-#
-# `check` lleva --strict porque sin el ningun aviso detiene nada: el flag estaba
-# documentado y nadie lo activaba, y un aviso que no rompe el pipeline es un
-# aviso que nadie lee. El unico aviso que puede aparecer es un panel vacio que no
-# esta en VACIOS_ESPERADOS, que es justo la metrica renombrada que se busca.
+# `check` lleva --strict porque sin el ningun aviso detiene nada, y un aviso que no
+# rompe el pipeline es un aviso que nadie lee. El unico aviso posible es un panel
+# vacio que no esta en VACIOS_ESPERADOS, que es justo la metrica renombrada que se busca.
 
 check: ## Dashboards, contrato de alertas, enlaces, entorno y sintaxis
 	$(PYTHON) scripts/check.py --strict
@@ -38,11 +36,10 @@ fmt: ## Comprobacion de formato; no cambia nada
 
 ci: config rules test config-services bridge validadores lint fmt check ## Todo lo que ejecuta la CI
 
-# La unica comprobacion que NO esta en `ci`, y por que. Las 53 expresiones se
-# ejecutan contra un Prometheus vivo, y un Prometheus recien arrancado no tiene
-# historia: tres paneles usan ventanas de [6h] y [30d], asi que ahi siempre estan
-# vacios y un pipeline que los tratara como fallo seria un pipeline rojo por el
-# motivo equivocado. Levantarlo en la CI no compra la metrica renombrada, que es
+# La unica comprobacion que NO esta en `ci`, y por que. Las 53 expresiones se ejecutan
+# contra un Prometheus vivo, y uno recien arrancado no tiene historia: tres paneles usan
+# ventanas de [6h] y [30d], asi que ahi siempre estan vacios y el pipeline saldria rojo
+# por el motivo equivocado. Levantarlo en la CI no compra la metrica renombrada, que es
 # lo unico que esto caza de verdad.
 check-datos: ## check entero, mas las 53 expresiones contra el Prometheus vivo
 	$(PYTHON) scripts/check.py --strict --prometheus $(PROMETHEUS)

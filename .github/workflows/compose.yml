@@ -1,8 +1,5 @@
-# ===========================================================================
-#  Validacion de los ficheros compose. Va aparte de ci.yml solo por el
-#  presupuesto de 100 lineas, no por una razon de arquitectura: nada de esto
-#  necesita el stack en marcha.
-# ===========================================================================
+# Validacion de los ficheros compose. Va aparte de ci.yml solo por el presupuesto de
+# 100 lineas, no por una razon de arquitectura: nada de esto necesita el stack en marcha.
 name: compose
 
 on:
@@ -19,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    # En la CI no hay .env porque no está versionado, y el compose lo exige con
-    # ${VAR:?mensaje}, que sale con 1 si la variable falta o está vacía. Basta con
-    # rellenar la única obligatoria: lo que se comprueba aquí es que el fichero
-    # resuelve, no que el secreto sea real.
+    # En la CI no hay .env porque no esta versionado, y el compose lo exige con
+    # ${VAR:?mensaje}, que sale con 1 si la variable falta o esta vacia. Basta con
+    # rellenar la unica obligatoria: se comprueba que el fichero resuelve, no que el
+    # secreto sea real.
     env:
       GF_SECURITY_ADMIN_PASSWORD: checking-only-not-a-secret
 
@@ -30,9 +27,9 @@ jobs:
       - name: Descargar el codigo
         uses: actions/checkout@v7
 
-      # `config --quiet` no arranca nada: solo resuelve los ficheros, comprueba que
-      # las variables existen y que los montajes son coherentes. Si un volumen
-      # apunta a un directorio inexistente, esto lo detecta.
+      # `config --quiet` no arranca nada: resuelve los ficheros, comprueba que las variables
+      # existen y que los montajes son coherentes, incluido un volumen que apunte a un
+      # directorio inexistente.
       - name: Validar docker-compose.yml
         run: docker compose -f docker-compose.yml config --quiet
 

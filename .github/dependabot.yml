@@ -3,21 +3,16 @@
 # ===========================================================================
 #  Las versiones se fijan exactas a proposito: el momento en que acaba un despliegue
 #  no es el momento de enterarse de que una version mayor cambio un comportamiento.
-#  Dependabot abre el cambio de version, la CI lo comprueba y la decision de
-#  aceptarlo es de quien lee el cambio.
-#
-#  Tres ecosistemas distintos, con politicas distintas:
-#  - Las imagenes de Docker se fijan por etiqueta y por digest. Esto es lo mas
-#    importante de este repositorio: un "latest" que se mueve solo
-#    hace cambiar el comportamiento sin que nadie lo decida.
-#  - Las dependencias de Python usan versiones exactas.
-#  - Las acciones de la CI siguen una etiqueta mayor, que es lo habitual.
+#  Dependabot abre el cambio, la CI lo comprueba y la decision es de quien lo lee.
+#  Lo mas importante son las imagenes Docker, fijadas por etiqueta y por digest: un
+#  "latest" que se mueve solo cambia el comportamiento sin que nadie lo decida. Python
+#  va con versiones exactas y las acciones de la CI con una etiqueta mayor, lo habitual.
 # ===========================================================================
 version: 2
 
 updates:
-  # Imagenes de los servicios del stack. Lo que mas importa es la agrupacion:
-  # cada entrada es hoy una version que no se mueve sola.
+  # Imagenes de los servicios del stack. Lo que mas importa es la agrupacion: cada
+  # entrada es hoy una version que no se mueve sola.
   - package-ecosystem: docker
     directory: "/"
     schedule:
@@ -31,9 +26,8 @@ updates:
     commit-message:
       prefix: "docker"
     groups:
-      # Prometheus, Alertmanager y node-exporter vienen del mismo proyecto y
-      # suelen salir juntos. Agruparlos evita abrir tres cambios que
-      # hay que revisar en bloque.
+      # Prometheus, Alertmanager y node-exporter vienen del mismo proyecto y salen
+      # juntos: agruparlos evita tres cambios que hay que revisar en bloque.
       prometheus:
         patterns:
           - "prom/prometheus"
@@ -43,9 +37,9 @@ updates:
       grafana:
         patterns:
           - "grafana/grafana"
-      # ntfy y cAdvisor no son del proyecto, pero tampoco forman parte del
-      # ecosistema de Prometheus, asi que conviene revisarlos aparte: ntfy
-      # publica a menudo y cAdvisor va por detras de la version de Kubernetes.
+      # ntfy y cAdvisor no son del proyecto y no forman parte del ecosistema de
+      # Prometheus: ntfy publica a menudo y cAdvisor va por detras de la version de
+      # Kubernetes, asi que conviene revisarlos aparte.
       otros:
         patterns:
           - "binwiederhier/ntfy"
@@ -53,9 +47,8 @@ updates:
           - "nginx"
 
     # mi-noc/ntfy-bridge se deja sin grupo a proposito: la imagen se construye desde
-    # ./ntfy-bridge con su propio Dockerfile, no se tira de un registro
-    # y no hay version que seguir. Lo que si se actualiza son sus dependencias
-    # de Python, en el bloque de pip de mas abajo.
+    # ./ntfy-bridge con su propio Dockerfile, no se tira de un registro y no hay version
+    # que seguir. Lo que si se actualiza son sus dependencias de Python.
 
   - package-ecosystem: pip
     directories:
