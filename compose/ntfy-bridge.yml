@@ -1,15 +1,8 @@
-# ntfy-bridge: Puente entre el webhook de Alertmanager y las notificaciones ntfy.
-# Definido en este fichero e inyectado por docker-compose.yml; los anchors
-# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+# Puente entre el webhook de Alertmanager y las notificaciones ntfy.
 services:
-
-
-  # =========================================================================
-  # 7. ntfy-bridge - the one component I wrote
-  # =========================================================================
-  # It turns the Alertmanager webhook into a phone notification, and it is the
-  # only component that holds credentials, so no other service needs to know
-  # them. Standard library only: no web framework, no build stage, ~70 MB image.
+  # Es el unico componente que guarda credenciales, asi que ningun otro servicio
+  # necesita conocerlas. Solo biblioteca estandar: sin framework web ni etapa de
+  # build, y una imagen de ~70 MB.
   ntfy-bridge:
     build:
       context: ../ntfy-bridge
@@ -23,23 +16,21 @@ services:
     environment:
       NTFY_URL: ${NTFY_URL:-http://ntfy:80}
       NTFY_TOPIC: ${NTFY_TOPIC:-noc-alerts}
-      # Token first, then user/password for ntfy instances with login enabled.
+      # Token primero, y luego usuario/contrasena para ntfy con login activado.
       NTFY_TOKEN: ${NTFY_TOKEN:-}
       NTFY_USER: ${NTFY_USER:-}
       NTFY_PASSWORD: ${NTFY_PASSWORD:-}
-      # Token the bridge demands in the Authorization header. Empty means no
-      # auth, which matches an Alertmanager that sends none: Alertmanager does
-      # not expand environment variables, so a non-empty token would have to be
-      # committed by hand. See docs/SECURITY.md.
+      # Token que el puente exige en la cabecera Authorization. Vacio = sin auth,
+      # que es lo que espera un Alertmanager sin token: no expande variables, asi
+      # que uno real tendria que escribirse a mano. Ver docs/SECURITY.md.
       BRIDGE_TOKEN: ${BRIDGE_TOKEN:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-    read_only: true                 # the app never writes to disk
+    read_only: true                 # la app nunca escribe en disco
     tmpfs:
       - /tmp:size=16M
     cap_drop:
       - ALL
-    # security_opt lo hereda de _base.yml: repetirlo aquí lo duplicaría, y
-    # Compose rechaza una lista con entradas repetidas.
+    # security_opt se hereda de _base.yml: repetirlo aqui lo duplicaria y Compose rechaza la lista.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/healthz',timeout=3).status==200 else 1)"]
       interval: 15s

@@ -151,6 +151,25 @@ largo que sea el token.
 | `ntfy-bridge` | ninguno | contenedores en `mesh` | `Authorization: Bearer` con `BRIDGE_TOKEN` |
 | `demo-app` | ninguno | contenedores en `mesh` | ninguna |
 
+<a id="cadvisor-privileged"></a>
+
+## cAdvisor, que necesita `privileged`
+
+Es el único componente del stack que corre con `privileged: true` y con el host montado, y no hay
+forma de evitarlo: cAdvisor lee las métricas de cgroup del kernel, que no se publican por ninguna
+API. Lo asumo como riesgo y escribo lo que lo hace aceptable:
+
+| Medida | Por qué |
+|---|---|
+| Los cinco montajes en solo lectura | Necesita leer `/`, `/var/run`, `/sys`, `/var/lib/docker` y `/dev/disk`, pero no escribir en ninguno |
+| Sin puerto publicado | Su único cliente legítimo es Prometheus, por nombre de servicio dentro de `mesh` |
+| Solo en `mesh`, nunca en `edge` | No alcanza la red que toca el host |
+| Límite de CPU y memoria | Acota el daño si el exportador se descontrola |
+
+Y lo que la política común **no** le aporta: `no-new-privileges` viene de `_base.yml`, pero
+`privileged: true` concede todas las capacidades, así que en este servicio concreto esa medida no
+protege nada. Lo dejo escrito para que nadie la cuente como una mitigación de cAdvisor.
+
 ## Grafana
 
 La contraseña de administrador viene de `GF_SECURITY_ADMIN_PASSWORD` en `.env`, no del valor por

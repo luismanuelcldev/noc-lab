@@ -1,12 +1,5 @@
-# alertmanager: Agrupa, silencia y reparte las alertas a los receptores.
-# Definido en este fichero e inyectado por docker-compose.yml; los anchors
-# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+# Agrupa, silencia y reparte las alertas a los receptores.
 services:
-
-
-  # =========================================================================
-  # 6. ALERTMANAGER - grouping, inhibition, silencing and routing
-  # =========================================================================
   alertmanager:
     image: prom/alertmanager:v0.34.1
     container_name: noc-alertmanager
@@ -21,18 +14,17 @@ services:
       - ../docker/alertmanager-entrypoint.sh:/usr/local/bin/render-config.sh:ro
       - alertmanager-data:/alertmanager
     environment:
-      # Consumed by docker/alertmanager-entrypoint.sh to inject the Authorization
-      # header into the webhooks: Alertmanager does not expand env vars, so
-      # without that script the token could not be sent at all.
+      # Consumida por docker/alertmanager-entrypoint.sh para inyectar la cabecera
+      # Authorization en los webhooks: Alertmanager no expande variables de entorno.
       BRIDGE_TOKEN: ${BRIDGE_TOKEN:-}
-    # tmpfs for the rendered file, which holds the token: in memory, outside the
-    # container layer.
+    # tmpfs para el fichero renderizado, que contiene el token: en memoria y fuera
+    # de la capa del contenedor.
     tmpfs:
       - /tmp:size=8M,mode=1777
     entrypoint: ["/bin/sh", "/usr/local/bin/render-config.sh"]
     command:
       - --config.file=/tmp/alertmanager.rendered.yml
-      - --storage.path=/alertmanager   # without this the silences are lost
+      - --storage.path=/alertmanager   # sin esto se pierden los silencios
       - --web.listen-address=0.0.0.0:9093
       - --log.level=info
       - --log.format=logfmt

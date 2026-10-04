@@ -1,72 +1,44 @@
-# ntfy: Servidor de notificaciones autoalojado.
-# Definido en este fichero e inyectado por docker-compose.yml; los anchors
-# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+# Servidor de notificaciones autoalojado.
 services:
-
-
-  # =========================================================================
-  # 8. ntfy - SELF-HOSTED notification server
-  # =========================================================================
-    # I do not use the public ntfy.sh: sending internal alerts to a third party
-    # is a data leak, and without authentication the topic is public and guessable.
+  # No uso el ntfy.sh publico: mandar alertas internas a un tercero es una fuga, y
+  # sin autenticacion el topic es publico y adivinable.
   ntfy:
     image: binwiederhier/ntfy:v2.28.0
     container_name: noc-ntfy
     extends:
       file: ./_base.yml
       service: default
-    # "serve" is mandatory. The image entrypoint only calls "ntfy", so without
-    # this subcommand ntfy prints its help and exits 0, and the container shows
-    # as "restarting" with no error in the logs: what you see IS the help text.
+    # `serve` es obligatorio: el entrypoint de la imagen solo llama a `ntfy`, asi que
+    # sin este subcomando imprime la ayuda y sale con 0, y el contenedor se queda
+    # "restarting" sin error en el log: lo que se ve ES la ayuda.
     command: ["serve"]
     networks: [edge, mesh]
     ports:
-      # Non-standard port on purpose: it avoids clashing with a host ntfy.
+      # Puerto no estandar a proposito: evita chocar con un ntfy del host.
       - "${NOC_BIND_ADDRESS:-127.0.0.1}:8085:80"
     environment:
-      # The URL ntfy embeds in the links it generates. It has to be reachable
-      # from wherever the notification is READ, not from wherever it is sent.
-      # On a phone that is the LAN address, never localhost: "localhost" on the
-      # phone is the phone itself.
+      # URL que ntfy incrusta en los enlaces que genera. Tiene que ser alcanzable
+      # desde donde se LEE la notificacion, no desde donde se envia: en un movil es
+      # la IP de la LAN, porque "localhost" en el movil es el propio movil.
       NTFY_BASE_URL: "${NTFY_BASE_URL:-http://localhost:8085}"
 
-      # iOS push for a self-hosted server. The app holds a direct socket to this
-      # server only while it is open, so a notification that has to wake it up
-      # cannot come from here: it comes from ntfy.sh, which is the server hooked
-      # into Apple's push network.
-      #
-      # What crosses that boundary is deliberately thin. server.go forwards a
-      # poll_request to "<upstream>/<topicHash>", where the topic is a hash and
-      # not the topic name, and the app then comes back here for the real
-      # message. ntfy.sh and Apple therefore never see the alert text, and the
-      # only thing they learn is that an unidentified server published something
-      # to an unguessable topic.
-      #
-      # Without this option, push on an iPhone does not work while the app is
-      # closed. Left empty by default so a lab with no route to the internet does
-      # not need it. The trade is the public instance's rate limit, and if you
-      # ever hit it, upstream-access-token with your own ntfy.sh account raises
-      # the ceiling.
+      # Push de iOS para un servidor autoalojado. Lo que cruza ese limite y lo que
+      # no, y por que no es una fuga, en docs/PROJECT.md.
       NTFY_UPSTREAM_BASE_URL: "${NTFY_UPSTREAM_BASE_URL:-}"
       NTFY_CACHE_FILE: /var/lib/ntfy/cache.db
       NTFY_LOG_LEVEL: info
-      # Mandatory as soon as the published port leaves the loopback interface.
-      # Without it the topic is public and guessable to anyone on the network,
-      # and anyone who finds it can publish fake alerts.
+      # Obligatorio en cuanto el puerto publicado sale de loopback: sin el, el topic
+      # es publico y adivinable, y quien lo encuentre puede publicar alertas falsas.
       NTFY_ENABLE_LOGIN: "${NTFY_ENABLE_LOGIN:-false}"
-      # Without this file ntfy refuses to create users at all: it answers
-      # "option database-url or auth-file not set; auth is unconfigured for
-      # this server". It lives in the volume so the users survive a recreate,
-      # which matters because recreating the stack must not lock the phone out
-      # of the topic.
+      # Sin este fichero ntfy se niega a crear usuarios ("auth-file not set"). Vive
+      # en el volumen para que sobrevivan a un recreate, que no debe dejar el movil
+      # fuera del topic.
       NTFY_AUTH_FILE: /var/lib/ntfy/auth.db
-      # What an unauthenticated client may do. "read-write" is the historical
-      # behaviour and it is only safe while the port stays on 127.0.0.1.
-      # "deny-all" is what makes the login meaningful: with it a client that has
-      # not authenticated gets nothing, and only a user with an explicit grant
-      # on the topic can read or publish.
+      # Lo que puede hacer un cliente sin autenticar. `read-write` es el
+      # comportamiento historico y solo es seguro mientras el puerto siga en
+      # 127.0.0.1; `deny-all` es lo que hace que el login signifique algo.
       NTFY_AUTH_DEFAULT_ACCESS: "${NTFY_AUTH_DEFAULT_ACCESS:-read-write}"
-      NTFY_ENCRYPTION: none          # in production: generate a key and use https
+      NTFY_ENCRYPTION: none          # en produccion: genera una clave y usa https
     volumes:
       - ntfy-data:/var/lib/ntfy
     healthcheck:

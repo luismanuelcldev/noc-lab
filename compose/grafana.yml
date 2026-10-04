@@ -1,14 +1,5 @@
-# grafana: Paneles. Aprovisionados desde los JSON del repositorio, nunca editados en la UI.
-# Definido en este fichero e inyectado por docker-compose.yml; los anchors
-# YAML no sobreviven a un include, de ahí extends en lugar de <<: *hardening.
+# Paneles. Aprovisionados desde los JSON del repositorio, nunca editados en la UI.
 services:
-
-
-  # =========================================================================
-  # 9. GRAFANA - visualisation and dashboards
-  # =========================================================================
-  # Datasource and dashboards are provisioned from ./grafana/provisioning, so
-  # the stack comes up reproducibly with no manual step.
   grafana:
     image: grafana/grafana:12.4.11
     container_name: noc-grafana
@@ -20,24 +11,23 @@ services:
       - "${NOC_BIND_ADDRESS:-127.0.0.1}:3000:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
-      # ":?" and not ":-". The difference is not cosmetic: with ":-" the default
-      # is "admin", so starting the stack without .env leaves an admin/admin
-      # Grafana listening on port 3000. With ":?" Compose ABORTS with a clear
-      # error. Failing to start beats starting open.
+      # ":?" y no ":-": con ":-" el valor por defecto es "admin", asi que arrancar
+      # sin .env deja un Grafana admin/admin escuchando en el 3000. Con ":?" Compose
+      # ABORTA con un error claro. Fallar al arrancar es mejor que arrancar abierto.
       GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:?set GF_SECURITY_ADMIN_PASSWORD in your .env (copy .env.example)}
-      GF_USERS_ALLOW_SIGN_UP: "false"        # no self sign-up
-      GF_AUTH_ANONYMOUS_ENABLED: "false"     # never a public dashboard
+      GF_USERS_ALLOW_SIGN_UP: "false"        # sin autorregistro
+      GF_AUTH_ANONYMOUS_ENABLED: "false"     # nunca un panel publico
       GF_AUTH_DISABLE_LOGIN_FORM: "false"
-      GF_ANALYTICS_REPORTING_ENABLED: "false"    # no telemetry to Grafana Labs
+      GF_ANALYTICS_REPORTING_ENABLED: "false"    # sin telemetria a Grafana Labs
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
       GF_NEWS_NEWS_FEED_ENABLED: "false"
       GF_SERVER_ROOT_URL: "http://localhost:3000"
       GF_LOG_LEVEL: warn
     volumes:
-      # Only the subdirectories this repository manages: the image ships its own
-      # access-control, alerting, notifiers and plugins directories, and
-      # mounting the parent hides them, so Grafana logs a "no such file or
-      # directory" for each one at startup.
+      # Solo los subdirectorios que gestiona este repositorio: la imagen trae sus
+      # propios directorios de control de acceso, alertas, notificadores y plugins,
+      # y montar el padre los tapa, asi que Grafana registra un "no such file or
+      # directory" por cada uno al arrancar.
       - ../grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ../grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
