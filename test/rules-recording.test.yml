@@ -1,15 +1,11 @@
 # Tests de regresión de las recording rules: la etiqueta correcta y la duplicación de cAdvisor.
 # Ejecutar: promtool test rules test/rules-recording.test.yml
 #
-# SEMÁNTICA DE promtool QUE AFECTA A ESTOS TESTS:
-#   * Las rutas de rule_files se resuelven desde la UBICACIÓN de este fichero, por eso
-#     el "../". Y falla en silencio de verdad: si la ruta está mal, promtool carga CERO
-#     reglas, todos los "exp_alerts: []" negativos pasan por el motivo equivocado y el
-#     fichero entero parece correcto. Si dudas, comprueba que no sale un WARNING de
-#     "no file match pattern".
-#   * Estos tests usan promql_expr_test, no alert_rule_test: comprueban el VALOR de la
-#     serie grabada, no si una alerta dispara. Es la única forma de fijar una recording
-#     rule, porque una recording rule correcta no dispara nada por definición.
+# SEMÁNTICA DE promtool QUE AFECTA A ESTOS TESTS: la común de todos los ficheros de
+# test/, documentada entera en test/rules-metaservicio.test.yml. Aquí estos tests usan
+# promql_expr_test, no alert_rule_test: comprueban el VALOR de la serie grabada, no si
+# una alerta dispara. Es la única forma de fijar una recording rule, porque una
+# recording rule correcta no dispara nada por definición.
 rule_files:
   - ../rules/*.yml
 
@@ -34,15 +30,14 @@ tests:
             value: 0.5
 
   # cAdvisor v0.55.1 con Docker 29 a veces emite el MISMO contenedor dos veces con
-  # conjuntos de etiquetas distintos: mismo id, una serie con
-  # container_label_restartcount y otra sin. Con dos series compartiendo name, "on(name)"
-  # pasa a ser muchos-a-muchos, Prometheus aborta la evaluación y la regla no graba
-  # NADA. Eso no es un problema de un contenedor: el panel entero queda vacío.
+  # conjuntos de etiquetas distintos: mismo id, una serie con container_label_restartcount
+  # y otra sin. Con dos series compartiendo name, "on(name)" pasa a ser muchos-a-muchos,
+  # Prometheus aborta la evaluación y la regla no graba NADA: no es un problema de un
+  # contenedor, el panel entero queda vacío.
   #
   # Este test inyecta esa duplicación a propósito. Con "max by (name)" en ambos lados la
-  # regla sigue evaluando y devuelve la serie del contenedor. Si alguien quita esa
-  # agregación, el test falla con "many-to-many matching not allowed", que es
-  # exactamente el síntoma visto en producción.
+  # regla sigue evaluando. Si alguien quita esa agregación, el test falla con
+  # "many-to-many matching not allowed", el síntoma exacto visto en producción.
   - name: "REGRESIÓN recording: memoria_porcentaje sobrevive a un contenedor duplicado por cAdvisor"
     interval: 1m
     input_series:

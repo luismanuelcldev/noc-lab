@@ -5,11 +5,10 @@ groups:
   - name: recursos_host
     rules:
       # node_exporter no publica un "up" de señal vital: si el host muere la serie
-      # desaparece en vez de ir a 0, así que "up == 0" no sirve aquí. Y absent() a
-      # secas responde "ninguna serie coincide", indistinguible de "Prometheus acaba
-      # de arrancar y aún no ha rascado": en un reinicio eso da un crítico falso.
-      # absent_over_time() con ventana sí distingue: la serie existía y no actualiza
-      # hace 5 minutos. Una regla cubre pérdida total y scrapes congelados.
+      # desaparece en vez de ir a 0, así que "up == 0" no sirve. Y absent() a secas
+      # responde "ninguna serie coincide", indistinguible de "Prometheus acaba de
+      # arrancar": en un reinicio daría un crítico falso. absent_over_time() con ventana
+      # sí distingue, y una regla cubre pérdida total y scrapes congelados.
       - alert: TargetHostCaido
         expr: absent_over_time(node_uname_info{job="node"}[5m])
         for: 3m
@@ -37,11 +36,9 @@ groups:
           runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#memoria-alta"
           dashboard_url: "http://localhost:3000/d/noc-equipo-memoria"
 
-      # CUIDADO CON LAS UNIDADES, dos trampas que muerden: PromQL NO acepta
-      # sufijos de bytes en literales numéricos, así que "256MiB" no es sintaxis
-      # válida (el léxico solo conoce sufijos de duración) y un literal así hace
-      # caer TODO el grupo de reglas en silencio. La conversión divide en vez de
-      # multiplicar por un literal con sufijo, que es la forma sin ambigüedad.
+      # CUIDADO CON LAS UNIDADES: PromQL NO acepta sufijos de bytes en literales, así que
+      # "256MiB" no es sintaxis válida y un literal así hace caer TODO el grupo en
+      # silencio. La conversión divide en vez de multiplicar por un literal con sufijo.
       - alert: HostSinMemoria
         expr: (node_memory_MemAvailable_bytes{job="node"} / 1024 / 1024) < 256
         for: 5m
@@ -54,10 +51,10 @@ groups:
           runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#host-sin-memoria"
           dashboard_url: "http://localhost:3000/d/noc-equipo-memoria"
 
-      # node_cpu_seconds_total es un CONTADOR de segundos de CPU, así que rate()
-      # devuelve NÚCLEOS: 1.0 es un núcleo al 100%, 0.8 es el 80% de UN núcleo, no
-      # de la máquina. El porcentaje total exige dividir entre el número de núcleos,
-      # que es lo que hace la recording rule noc_host_cpu_uso_porcentaje.
+      # node_cpu_seconds_total es un CONTADOR de segundos, así que rate() devuelve
+      # NÚCLEOS: 0.8 es el 80% de UN núcleo, no de la máquina. El porcentaje total exige
+      # dividir entre el número de núcleos, que es lo que hace la recording rule
+      # noc_host_cpu_uso_porcentaje.
       - alert: CPUHostAlta
         expr: |
           (1 - avg by (instance) (rate(node_cpu_seconds_total{job="node", mode="idle"}[2m]))) * 100
@@ -84,9 +81,8 @@ groups:
           runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#host-reiniciado"
           dashboard_url: "http://localhost:3000/d/noc-equipo-red-reloj"
 
-      # Un reloj desviado rompe la correlación entre logs, métricas y trazas, que
-      # es la razón de ser del monitorización, y también la trazabilidad de la que
-      # depende una revisión de incidente.
+      # Un reloj desviado rompe la correlación entre logs, métricas y trazas, que es la
+      # razón de ser de la monitorización, y también la trazabilidad de una revisión.
       - alert: RelojDesincronizado
         expr: abs(node_timex_offset_seconds{job="node"}) > 0.05
         for: 10m

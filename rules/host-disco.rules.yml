@@ -21,9 +21,9 @@ groups:
           runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#disco-casi-lleno"
           dashboard_url: "http://localhost:3000/d/noc-equipo-disco"
 
-      # Ancla propia, no compartida con DiscoCasiLleno: esta es crítica y avisa de
-      # noche, y quien siga el enlace a las 3 de la mañana necesita el procedimiento
-      # de contención inmediata, no el de "mira cuánto queda cuando puedas".
+      # Ancla propia, no compartida con DiscoCasiLleno: esta es crítica y avisa de noche,
+      # y a las 3 de la mañana hace falta el procedimiento de contención inmediata, no el
+      # de "mira cuánto queda cuando puedas".
       - alert: DiscoCriticamenteLleno
         expr: |
           (
@@ -40,9 +40,9 @@ groups:
           runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#disco-criticamente-lleno"
           dashboard_url: "http://localhost:3000/d/noc-equipo-disco"
 
-      # Síntoma de un sistema de archivos degradado por hardware o por un journal
-      # sin reproducir. El sistema sigue "vivo" y no activa ninguna otra alerta,
-      # mientras escribe sobre un sistema de solo lectura.
+      # Síntoma de un sistema de archivos degradado por hardware o por un journal sin
+      # reproducir: todo sigue "vivo" y no activa ninguna otra alerta mientras escribe
+      # sobre un sistema de solo lectura.
       - alert: DiscoSoloLectura
         expr: node_filesystem_readonly{job="node"} == 1
         for: 2m

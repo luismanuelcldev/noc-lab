@@ -1,6 +1,5 @@
-# Disponibilidad: ¿puede el cliente usar el servicio?
-# Es la pregunta que hace el negocio. Las alertas de infraestructura son
-# consecuencias, no causas.
+# Disponibilidad: ¿puede el cliente usar el servicio? Es la pregunta que hace el
+# negocio; las alertas de infraestructura son consecuencias, no causas.
 # Validar: promtool check rules rules/disponibilidad.rules.yml
 groups:
   - name: disponibilidad
@@ -17,9 +16,9 @@ groups:
           runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#servicio-caido"
           dashboard_url: "http://localhost:3000/d/noc-sondas"
 
-      # probe_success == 1 pero el cuerpo no es el esperado: el puerto responde
-      # mientras la aplicación está rota, o un balanceador devuelve errores. Es la
-      # falla que un "¿está vivo?" normal NO detecta.
+      # probe_success == 1 pero el cuerpo no es el esperado: el puerto responde con la
+      # aplicación rota, o un balanceador devuelve errores. Es el fallo que un "¿está
+      # vivo?" normal NO detecta.
       - alert: SondaDevueltaRespuestaInvalida
         expr: probe_http_status_code{job="blackbox-http"} != 200
         for: 2m

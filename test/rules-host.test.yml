@@ -1,33 +1,24 @@
 # Tests de regresión de los recursos del host: pérdida de métricas y unidades de CPU.
 # Ejecutar: promtool test rules test/rules-host.test.yml
 #
-# SEMÁNTICA DE promtool QUE AFECTA A ESTOS TESTS:
-#   * Las rutas de rule_files se resuelven desde la UBICACIÓN de este fichero, por eso
-#     el "../". Y falla en silencio de verdad: si la ruta está mal, promtool carga CERO
-#     reglas, todos los "exp_alerts: []" negativos pasan por el motivo equivocado y el
-#     fichero entero parece correcto. Si dudas, comprueba que no sale un WARNING de
-#     "no file match pattern".
-#   * exp_labels y exp_annotations se comparan como CONJUNTOS COMPLETOS, no subconjuntos:
-#     si la alerta produce una etiqueta o anotación que el test no lista, falla. Por eso
-#     cada caso positivo lista las cuatro anotaciones, lo que además deja verificado y
-#     documentado el contrato de la alerta (texto, runbook, dashboard).
+# SEMÁNTICA DE promtool QUE AFECTA A ESTOS TESTS: la común de todos los ficheros de
+# test/, documentada entera en test/rules-metaservicio.test.yml. Aquí suman dos cosas:
 #   * Una regla con rate() necesita DOS muestras para producir resultado, así que su
-#     "for" no empieza a contar hasta la segunda. Una alerta con for=15m sobre un rate()
-#     cuyos datos empiezan en t=0 no dispara hasta el minuto 17: por eso el límite de
-#     CPUHostAlta no es su "for".
-#   * La notación "Nx" coloca N muestras, pero la primera cae un intervalo más tarde que
-#     t=0. Importa en los tests que dependen de dónde PARA la serie (TargetHostCaido), y
-#     por eso ese usa valores explícitos.
+#     "for" no empieza a contar hasta la segunda: una alerta con for=15m sobre un rate()
+#     cuyos datos empiezan en t=0 no dispara hasta el minuto 17.
+#   * La notación "Nx" coloca N muestras, pero la primera cae un intervalo más tarde
+#     que t=0. Importa en los tests que dependen de dónde PARA la serie
+#     (TargetHostCaido), y por eso ese usa valores explícitos.
 rule_files:
   - ../rules/*.yml
 
 evaluation_interval: 1m
 
 tests:
-  # Valores explícitos en lugar de "1x6": este test depende de dónde PARA la serie, y
-  # la forma corta coloca la última muestra un intervalo más tarde. Con la última muestra
-  # en t=5m, la ventana de 5m la excluye en t=10m, absent_over_time se activa ahí y con
-  # su for de 3m dispara en t=13m.
+  # Valores explícitos en lugar de "1x6": este test depende de dónde PARA la serie, y la
+  # forma corta coloca la última muestra un intervalo más tarde. Con la última muestra en
+  # t=5m, la ventana de 5m la excluye en t=10m, absent_over_time se activa ahí y su for de
+  # 3m dispara en t=13m.
   #
   # Las anotaciones se comprueban enteras porque el fallo original estaba justo ahí:
   # absent_over_time() devuelve {job="node"} y nada más, así que un {{ $labels.instance }}
@@ -51,10 +42,10 @@ tests:
               runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#target-host-caido"
               dashboard_url: "http://localhost:3000/d/noc-objetivos"
 
-  # REGRESIÓN de unidades de CPU. El rate() de un contador de segundos de CPU devuelve
-  # NÚCLEOS. Con idle subiendo 6s por minuto, la CPU usada es del 90% y debe disparar;
-  # el negativo está en 15m y no en 14m porque rate() necesita dos muestras, así que el
-  # for de 15m solo empieza en el minuto 2 y dispara en el 17.
+  # REGRESIÓN de unidades de CPU: el rate() de un contador de segundos devuelve NÚCLEOS.
+  # Con idle subiendo 6s por minuto, la CPU usada es del 90% y debe disparar; el negativo
+  # está en 15m y no en 14m porque rate() necesita dos muestras, así que el for de 15m
+  # solo empieza en el minuto 2 y dispara en el 17.
   - name: "CPUHostAlta: 90% de uso dispara en 17m, y no antes"
     interval: 1m
     input_series:
