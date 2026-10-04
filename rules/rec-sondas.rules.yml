@@ -4,8 +4,8 @@ groups:
   - name: grabacion_sondas
     interval: 15s
     rules:
-      # Latencia en milisegundos. Los paneles muestran segundos, y a escala de
-      # milisegundos una cifra en segundos tiene un solo dígito significantemente útil.
+      # Latencia en milisegundos. Los paneles muestran segundos, y a esa escala una
+      # cifra en segundos tiene un solo dígito significativamente útil.
       - record: noc_sonda_latencia_ms
         expr: probe_duration_seconds * 1000
 

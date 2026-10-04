@@ -1,7 +1,6 @@
 # Tests de regresión del metaservicio: latido, rascado del propio Prometheus y objetivos.
 # Los tests de los canales de salida (CanalNotificacionCaido) viven aparte, en
-# test/rules-canales.test.yml: cubren el mismo módulo de reglas pero otra preocupación,
-# y juntos no caben en un fichero de 100 líneas.
+# test/rules-canales.test.yml: cubren otro módulo de reglas y juntos no caben aquí.
 # Ejecutar: promtool test rules test/rules-metaservicio.test.yml
 #
 # SEMÁNTICA DE promtool QUE AFECTA A ESTOS TESTS:
@@ -21,9 +20,9 @@ rule_files:
 evaluation_interval: 1m
 
 tests:
-  # El latido tiene que estar en [FIRING] desde el primer segundo. Si tuviera un "for",
-  # existiría una ventana de arranque en la que Prometheus podría estar muerto sin que
-  # nadie se entere, que es justo lo que existe para evitar.
+  # El latido tiene que estar en [FIRING] desde el primer segundo. Con un "for" existiría
+  # una ventana de arranque en la que Prometheus podría estar muerto sin que nadie se
+  # entere, que es justo lo que esta alerta existe para evitar.
   - name: "LatidoDeMonitorizacion: dispara en t=0 sin margen y con su juego completo de etiquetas"
     interval: 1m
     alert_rule_test:
@@ -37,9 +36,9 @@ tests:
               runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#latido-de-monitorizacion"
               dashboard_url: "http://localhost:3000/d/noc-estado"
 
-  # "for: 3m" existe para que un solo rascado fallido no genere una página. Se
-  # comprueba el instante justo antes y el instante en que se cumple: un test que solo
-  # mirase "después" pasaría con cualquier valor de for.
+  # "for: 3m" existe para que un solo rascado fallido no genere una página. Se comprueba
+  # el instante justo antes y el que se cumple: un test que solo mirase "después" pasaría
+  # con cualquier valor de for.
   - name: "PrometheusSinScrapear: respeta su for de 3m, ni un raspado antes ni después"
     interval: 1m
     input_series:
@@ -59,9 +58,9 @@ tests:
               runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#prometheus-sin-scrapear"
               dashboard_url: "http://localhost:3000/d/noc-estado"
 
-  # La lista de jobs es explícita a propósito. Este test fija esa decisión: un job
-  # añadido al stack y no añadido a la lista queda fuera de cobertura, y eso es
-  # exactamente lo que hay que revisar cada vez que se añade un servicio.
+  # La lista de jobs es explícita a propósito. Este test fija esa decisión: un job añadido
+  # al stack y no a la lista queda fuera de cobertura, y eso es lo que hay que revisar
+  # cada vez que se añade un servicio.
   - name: "TargetCaido: un job fuera de la lista no produce alerta"
     interval: 1m
     input_series:

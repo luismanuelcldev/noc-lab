@@ -1,19 +1,10 @@
 # Tests de regresión de contenedores: división por cero, conteo de reinicios y etiquetas.
 # Ejecutar: promtool test rules test/rules-contenedores.test.yml
 #
-# SEMÁNTICA DE promtool QUE AFECTA A ESTOS TESTS:
-#   * Las rutas de rule_files se resuelven desde la UBICACIÓN de este fichero, por eso
-#     el "../". Y falla en silencio de verdad: si la ruta está mal, promtool carga CERO
-#     reglas, todos los "exp_alerts: []" negativos pasan por el motivo equivocado y el
-#     fichero entero parece correcto. Si dudas, comprueba que no sale un WARNING de
-#     "no file match pattern".
-#   * exp_labels y exp_annotations se comparan como CONJUNTOS COMPLETOS, no subconjuntos:
-#     si la alerta produce una etiqueta o anotación que el test no lista, falla. Por eso
-#     cada caso positivo lista las cuatro anotaciones, lo que además deja verificado y
-#     documentado el contrato de la alerta (texto, runbook, dashboard).
-#   * Etiquetas que sobreviven y que conviene recordar: las uniones "sum by (name)" y
-#     "on(name)" DESCARTAN el resto, job incluido. Por eso ContenedorUsoMemoriaAlto no
-#     lleva job y ContenedorReiniciado sí. Es correcto, no un descuido.
+# SEMÁNTICA DE promtool QUE AFECTA A ESTOS TESTS: la común de todos los ficheros de
+# test/, documentada entera en test/rules-metaservicio.test.yml. Aquí suma una cosa: las
+# uniones "sum by (name)" y "on(name)" DESCARTAN el resto, job incluido. Por eso
+# ContenedorUsoMemoriaAlto no lleva job y ContenedorReiniciado sí. Es correcto.
 rule_files:
   - ../rules/*.yml
 
@@ -22,8 +13,7 @@ evaluation_interval: 1m
 tests:
   # REGRESIÓN del fallo más caro del stack. Sin el filtro "> 0" en el denominador,
   # working_set / 0 = +Inf y +Inf > 90 es siempre cierto, así que toda alerta de
-  # contenedor quedaba permanentemente disparada. Un contenedor SIN límite no es
-  # expresable como porcentaje, y lo correcto es que no entre en la regla.
+  # contenedor quedaba permanentemente disparada. Sin límite no hay porcentaje: no entra.
   - name: "ContenedorUsoMemoriaAlto REGRESIÓN: un contenedor sin límite NO dispara"
     interval: 1m
     input_series:
@@ -54,11 +44,10 @@ tests:
               runbook_url: "https://github.com/luismanuelcldev/noc-lab/blob/main/docs/RUNBOOK.md#contenedor-memoria-alto"
               dashboard_url: "http://localhost:3000/d/noc-contenedores-resumen"
 
-  # REGRESIÓN del método de conteo, por los dos lados. container_last_seen NO es un
-  # contador: es un reloj que avanza mientras el contenedor vive, así que el increase()
-  # da ~0 y la versión anterior de esta regla no detectaba ni un solo reinicio. Era
-  # decoración que PARECÍA funcionar. Este test fija que un arranque no dispara y dos sí,
-  # que es la firma de un bucle de fallos.
+  # REGRESIÓN del método de conteo, por los dos lados. container_last_seen NO es un contador:
+  # es un reloj que avanza mientras el contenedor vive, así que el increase() da ~0 y la
+  # versión anterior no detectaba ni un reinicio: era decoración que PARECÍA funcionar.
+  # Este test fija que un arranque no dispara y dos sí, la firma de un bucle de fallos.
   - name: "ContenedorReiniciado REGRESIÓN: un solo arranque no dispara"
     interval: 1m
     input_series:
