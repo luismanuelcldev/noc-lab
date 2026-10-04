@@ -1,13 +1,9 @@
-# ===========================================================================
-#  Formato de los ficheros
-# ===========================================================================
-#  Casi todas las reglas coinciden con lo que ya hace ruff format, para que el
-#  editor y la comprobacion automatizada no se contradigan. Cuando se
-#  contradigan, el editor cede: gana ruff, porque ruff es lo que corre la CI.
+# Formato de los ficheros.
 #
-#  Uso: cualquier editor compatible lo lee solo (VS Code de serie, con la
-#  extension EditorConfig; vim y emacs necesitan el plugin correspondiente).
-# ===========================================================================
+# Casi todas las reglas coinciden con lo que ya hace ruff format, para que el editor y
+# la comprobacion automatizada no se contradigan. Cuando se contradigan, el editor
+# cede: gana ruff, porque ruff es lo que corre la CI. Cualquier editor compatible lo
+# lee solo (VS Code de serie; vim y emacs necesitan su plugin).
 root = true
 
 [*]
@@ -18,38 +14,34 @@ trim_trailing_whitespace = true
 indent_style = space
 indent_size = 4
 
-# Los ficheros de configuracion de Docker, Prometheus, Alertmanager y Grafana
-# usan dos espacios, que es lo que espera ese YAML. No es una preferencia
-# estetica: el YAML no lo impone, pero un YAML con cuatro espacios mezclados
-# entre dos se lee como un error aunque no lo sea.
+# Docker, Prometheus, Alertmanager y Grafana usan dos espacios, que es lo que espera
+# ese YAML. No es estetica: el YAML no lo impone, pero uno con cuatro espacios
+# mezclados entre dos se lee como un error aunque no lo sea.
 [*.{yml,yaml}]
 indent_size = 2
 
-# El Makefile necesita tabuladores de verdad. Un editor configurado para
-# indentar con espacios produce un "missing separator" que no dice nada util.
+# El Makefile necesita tabuladores de verdad. Un editor configurado para indentar con
+# espacios produce un "missing separator" que no dice nada util.
 [Makefile]
 indent_style = tab
 
-# Los JSON de los paneles de Grafana los produce su editor, y los indentamos
-# con dos espacios para que el diff se lea. Del formato no nos encargamos: el
-# fichero viene de fuera, y lo que se versiona es la salida del panel.
+# Los JSON de los paneles los produce el editor de Grafana: el formato no es nuestro,
+# lo que se versiona es la salida del panel, y dos espacios para que el diff se lea.
 [grafana/dashboards/*.json]
 indent_size = 2
 
-# Los scripts de shell usan dos espacios, como el resto de shell que lee la
-# gente.
+# Los scripts de shell usan dos espacios, como el resto de shell que lee la gente.
 [*.{sh,bash}]
 indent_size = 2
 
-# Markdown: los bloques de codigo se indentan con cuatro, para que resalten
-# respecto a la lista en la que se apoyan.
+# Markdown: los bloques de codigo se indentan con cuatro, para que resalten respecto a
+# la lista en la que se apoyan.
 [*.md]
 indent_size = 4
 trim_trailing_whitespace = false
 
-# En Windows, LF y no CRLF. Los ficheros de este repositorio se comparan entre
-# maquinas de los tres sistemas, y un CRLF que se cuela produce un diff de
-# fichero entero en un fichero que nadie ha tocado. Git ya lo normaliza con
-# .gitattributes; esto es para que el editor lo haga bien desde el principio.
+# En Windows, LF y no CRLF. Los ficheros se comparan entre maquinas de los tres
+# sistemas, y un CRLF que se cuela produce un diff de fichero entero en uno que nadie
+# ha tocado. Git ya lo normaliza con .gitattributes; esto es para el editor.
 [*.{py,yml,yaml,sh,md,json,toml}]
 end_of_line = lf

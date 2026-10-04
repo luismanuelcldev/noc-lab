@@ -1,11 +1,10 @@
 # Ficheros que deben entrar en el repositorio con LF, sin depender de la
 # configuracion de cada maquina.
 #
-# Sin esto, `core.autocrlf = true` (el valor por defecto de Git para Windows)
-# mete CRLF en el working tree y los scripts de shell de docker/ dejan de
-# funcionar dentro de los contenedores: un shebang con \r da "no such file or
-# directory" al ejecutar el fichero. Un .gitattributes que fija LF en el
-# repositorio hace que todos los clone, en Windows y en Linux, vean lo mismo.
+# Sin esto, `core.autocrlf = true` (el valor por defecto de Git para Windows) mete
+# CRLF en el working tree y los scripts de shell de docker/ dejan de funcionar dentro
+# de los contenedores: un shebang con \r da "no such file or directory". Fijando LF
+# aqui, todos los clone, en Windows y en Linux, ven lo mismo.
 
 # Por defecto: texto con LF, y conversion solo cuando tiene sentido.
 * text=auto eol=lf
@@ -21,8 +20,8 @@ Makefile text eol=lf
 *.mk text eol=lf
 Dockerfile text eol=lf
 
-# Ficheros sin extension que tambien se ejecutan: los entrypoint de
-# prometheus y alertmanager, y la pagina de demo-app.
+# Ficheros sin extension que tambien se ejecutan: los entrypoint de prometheus y
+# alertmanager, y la pagina de demo-app.
 docker/* text eol=lf
 demo-app/html/* text eol=lf
 

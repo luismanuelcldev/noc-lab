@@ -1,23 +1,13 @@
-# ===========================================================================
-#  Configuración de herramientas para todo el repositorio
-# ===========================================================================
-#  Este fichero no declara el proyecto: configura lo que aplica a todo el
-#  árbol, y sobre todo a ruff.
+# Configuracion de ruff y demas herramientas para todo el repositorio. Este
+# fichero no declara el proyecto.
 #
-#  Por qué ruff se configura aquí y no dentro de ntfy-bridge/: porque hay código
-#  fuera de ese directorio. Los validadores de scripts/ revisan el repositorio
-#  entero (reglas de Prometheus, cuadros de mando de Grafana, documentación) y no
-#  tienen nada que ver con el paquete del puente, y sin embargo se ejecutan en el
-#  mismo paso de CI y deben usar las mismas reglas. Ruff lee el pyproject.toml
-#  más cercano que contenga [tool.ruff], así que dejar la configuración en la
-#  raíz hace que `ruff check .` sea el mismo comando con el mismo resultado desde
-#  cualquier directorio.
+# Ruff se configura aqui y no dentro de ntfy-bridge/ porque hay codigo fuera de ese
+# directorio: los validadores de scripts/ revisan el arbol entero y se ejecutan en el
+# mismo paso de CI, asi que tienen que usar las mismas reglas. Ruff lee el
+# pyproject.toml mas cercano que contenga [tool.ruff], de modo que en la raiz
+# `ruff check .` es el mismo comando con el mismo resultado desde donde se ejecute.
 #
-#  Uso:
-#        ruff check .            (análisis estático de todo el árbol)
-#        ruff format .           (formateo)
-#        ruff format --check .   (lo que ejecuta la CI)
-# ===========================================================================
+#   ruff check . | ruff format . | ruff format --check .   (el ultimo corre en la CI)
 
 [tool.ruff]
 line-length = 100
@@ -43,37 +33,32 @@ select = [
 ignore = [
     "D203",   # incompatible con D211
     "D213",   # incompatible con D212
-    "ANN401", # Any es legítimo en el borde de un manejador HTTP
-    "PLR0913", # demasiados argumentos: aceptable en funciones de configuración
+    "ANN401", # Any es legitimo en el borde de un manejador HTTP
+    "PLR0913", # demasiados argumentos: aceptable en funciones de configuracion
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Los patrones se comparan con la ruta relativa a la raíz del repositorio, que es
-# donde está este fichero. Por eso llevan el prefijo "ntfy-bridge/".
-#
-# En los tests es de esperar que aparezcan cadenas con aspecto de credencial: son
-# valores inventados cuyo único propósito es comprobar que el enmascarado y la
-# validación funcionan. S105 y S106 (secreto en código) y S101 (assert) se
-# desactiva aquí y solo aquí, nunca en código de producción. El patrón es
-# test_*.py, así que esta única línea cubre todos los módulos en los que se
-# dividió el antiguo test_bridge.py.
+# Los patrones se comparan con la ruta relativa a la raiz del repositorio, que es
+# donde esta este fichero; de ahi el prefijo "ntfy-bridge/".
 "ntfy-bridge/test_*.py" = [
+    # En los tests es de esperar que aparezcan cadenas con aspecto de credencial:
+    # son valores inventados para comprobar que el enmascarado funciona. S105, S106
+    # y S101 se desactivan aqui y solo aqui, nunca en codigo de produccion.
     "D100", "D101", "D102", "D103", "D107",
     "S101", "S105", "S106", "ANN001", "ANN003", "ANN201", "PLR2004",
 ]
-# ajuste.py corre en un contenedor y DEBE usar 0.0.0.0 por defecto: dentro de la
-# red de Docker, 127.0.0.1 dejaría el puente inalcanzable desde cualquier otro
-# servicio. El aislamiento viene de la red, no de la dirección de escucha.
+# ajuste.py corre en un contenedor y DEBE usar 0.0.0.0: en la red de Docker,
+# 127.0.0.1 lo dejaria inalcanzable desde cualquier otro servicio. El aislamiento
+# viene de la red, no de la direccion de escucha.
 "ntfy-bridge/ajuste.py" = ["S104"]
-  # Los validadores de scripts/ son utilidades de un solo comando: anotar el tipo
-  # de cada variable intermedia no aporta nada a un bloque lineal de
-  # comprobaciones y solo produce ruido. "**" para que el patrón cubra también el
-  # paquete noccheck, que es lo que un "*" a secas no alcanzaría.
-  "scripts/**" = ["ANN001", "ANN201", "D100", "D103"]
-  # D101 y D102 (clase y metodo publicos sin docstring) se eximen solo en los
-  # tests de scripts/, no en "scripts/**": los validadores de produccion si
-  # documentan que comprueban y por que, y un test se explica con su nombre.
-  "scripts/test_*.py" = ["D101", "D102"]
+# Utilidades de un solo comando: anotar cada variable intermedia no aporta nada a un
+# bloque lineal de comprobaciones. "**" cubre tambien el paquete noccheck, que un "*"
+# a secas no alcanzaria.
+"scripts/**" = ["ANN001", "ANN201", "D100", "D103"]
+# D101 y D102 (clase y metodo publicos sin docstring) se eximen solo en los tests de
+# scripts/, no en "scripts/**": los validadores de produccion si documentan que
+# comprueban y por que, y un test se explica con su nombre.
+"scripts/test_*.py" = ["D101", "D102"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

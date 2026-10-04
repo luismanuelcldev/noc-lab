@@ -1,22 +1,14 @@
-# ===========================================================================
-#  Comprobaciones antes de confirmar
-# ===========================================================================
-#  La CI ejecuta estas mismas comprobaciones. Tenerlas tambien aqui no es
-#  redundancia: la CI te dice que algo se rompio cuando ya esta en el
-#  repositorio, y esto te lo dice antes de que llegue.
+# Comprobaciones antes de confirmar. La CI ejecuta estas mismas: no es
+# redundancia, es que la CI avisa de que algo se rompio cuando ya esta en el
+# repositorio y esto lo dice antes de que llegue.
 #
-#  Instalar una vez:
-#      pip install pre-commit
-#      pre-commit install
+#   pip install pre-commit && pre-commit install    (una vez)
+#   pre-commit run --all-files                      (sin confirmar)
 #
-#  Para ejecutar todo sin confirmar:
-#      pre-commit run --all-files
-#
-#  ruff se fija a la misma version que instala la CI, asi que lo que corre aqui y
-#  lo que corre en la cadena son la misma comprobacion. Los JSON de los
-#  paneles quedan fuera del hook de formato: son exportaciones generadas por
-#  Grafana, y reformatearlos solo produce un diff que nadie puede revisar.
-# ===========================================================================
+# ruff se fija a la misma version que instala la CI, asi que lo que corre aqui y lo
+# que corre en la cadena son la misma comprobacion. Los JSON de los paneles quedan
+# fuera del hook de formato: son exportaciones generadas por Grafana, y
+# reformatearlos solo produce un diff que nadie puede revisar.
 exclude: '^grafana/dashboards/.*\.json$'
 
 repos:
