@@ -97,10 +97,10 @@ sed -e "s|\${NOC_MONITOR_NAME}|$NOC_MONITOR_NAME|" \
 prometheus --config.file=prometheus.rendered.yml
 ```
 
-`prometheus.rendered.yml` no está en `.gitignore`, así que hay que borrarlo en cuanto se termine.
-Si se apunta directamente a `prometheus.yml`, Prometheus arranca sin error y las alertas salen
-con la etiqueta literal `${NOC_MONITOR_NAME}`: llegan, se leen, y no se pueden separar por
-entorno.
+`prometheus.rendered.yml` está en `.gitignore`, pero conviene borrarlo igualmente en cuanto se
+termine, para no editar sin querer sobre un fichero generado. Si se apunta directamente a
+`prometheus.yml`, Prometheus arranca sin error y las alertas salen con la etiqueta literal
+`${NOC_MONITOR_NAME}`: llegan, se leen, y no se pueden separar por entorno.
 
 ## Comandos del día a día
 
