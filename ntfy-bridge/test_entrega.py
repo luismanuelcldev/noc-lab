@@ -15,9 +15,8 @@ from entrega import deliver
 class FakeNtfy(BaseHTTPRequestHandler):
     """Registra lo que envía el puente y responde con un estado preparado.
 
-    Estado a nivel de clase a propósito: el manejador corre en el hilo del
-    servidor, así que el registro tiene que vivir donde el hilo de prueba también
-    pueda leerlo.
+    Estado a nivel de clase a propósito: el manejador corre en el hilo del servidor, así
+    que el registro tiene que vivir donde el hilo de prueba también pueda leerlo.
     """
 
     received: ClassVar[list[dict]] = []
@@ -74,9 +73,8 @@ class DeliverTest(unittest.TestCase):
         self.assertEqual(attempts, ajuste.MAX_RETRIES + 1)
 
     def test_does_not_retry_a_rejected_payload(self) -> None:
-        # Un 400 no se va a convertir en un 200 en un segundo intento, así que
-        # reintentar solo retrasaría el 502 que le dice a Alertmanager que
-        # aplique su espera.
+        # Un 400 no se va a convertir en un 200 en un segundo intento: reintentar solo
+        # retrasaría el 502 que le dice a Alertmanager que aplique su espera.
         FakeNtfy.statuses.append(400)
         ok, attempts, _ = deliver("t", "b", 5, [], "")
         self.assertFalse(ok)

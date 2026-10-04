@@ -1,8 +1,8 @@
 """Publicar el mensaje en ntfy, con espera exponencial.
 
-Alertmanager reintenta con su propio calendario, pero reintentar aqui deja el
-intento dentro de las metricas del puente y responde rapido, en vez de mantener
-abierta la peticion de Alertmanager durante todo el group_wait.
+Alertmanager reintenta con su propio calendario, pero reintentar aqui deja el intento
+dentro de las metricas del puente y responde rapido, en vez de tener abierta la peticion
+durante todo el group_wait.
 """
 
 from __future__ import annotations
@@ -25,8 +25,7 @@ def _auth_headers() -> dict[str, str]:
         return {"Authorization": f"Bearer {ajuste.NTFY_TOKEN}"}
     if ajuste.NTFY_USER and ajuste.NTFY_PASSWORD:
         # Autenticacion basica: el laboratorio usa ntfy con el login desactivado, pero
-        # una instalacion que lo active no deberia necesitar un cambio de codigo para
-        # seguir funcionando.
+        # una instalacion que lo active no deberia necesitar un cambio de codigo.
         pair = base64.b64encode(f"{ajuste.NTFY_USER}:{ajuste.NTFY_PASSWORD}".encode()).decode()
         return {"Authorization": f"Basic {pair}"}
     return {}
@@ -52,9 +51,8 @@ def deliver(
     for attempt in range(1, ajuste.MAX_RETRIES + 2):
         try:
             # S310: el esquema viene de ajuste.NTFY_URL, que es configuracion de
-            # despliegue y no entrada de la peticion, y el laboratorio habla con ntfy
-            # por http a proposito. En un despliegue real aqui es donde se fuerza el
-            # esquema a https.
+            # despliegue y no entrada de la peticion, y el laboratorio habla con ntfy por
+            # http a proposito. En un despliegue real aqui se fuerza https.
             with urlopen(  # noqa: S310
                 Request(ajuste.NTFY_URL, data=data, headers=headers, method="POST"),  # noqa: S310
                 timeout=ajuste.TIMEOUT,

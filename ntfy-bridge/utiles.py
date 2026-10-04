@@ -1,7 +1,7 @@
 """Fixtures compartidas por las pruebas del puente.
 
-La fabrica de alertas vive aqui para que los modulos de prueba describan el mismo
-lote de la misma manera, y para que un cambio en su forma se haga en un sitio.
+La fabrica de alertas vive aqui para que todos los tests describan el mismo lote de
+la misma manera y un cambio en su forma se haga en un sitio.
 """
 
 from __future__ import annotations

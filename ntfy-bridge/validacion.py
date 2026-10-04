@@ -1,9 +1,8 @@
 """Lo que se puede decidir de un lote entrante sin tocar la red.
 
-Son las tres preguntas que se responden antes de mirar un socket: el token es
-válido, este cuerpo es aceptable y qué código hay que devolver. app.py queda
-entonces solo como transporte, y por eso los casos interesantes se prueban sin
-arrancar un servidor.
+Son las tres preguntas que se responden antes de mirar un socket: el token es válido,
+este cuerpo es aceptable y qué código hay que devolver. app.py queda solo como
+transporte, así que los casos interesantes se prueban sin arrancar un servidor.
 """
 
 from __future__ import annotations
@@ -23,9 +22,8 @@ ERRORES = {
 def autorizado(header: str) -> bool:
     """Comprueba el token bearer cuando hay uno configurado.
 
-    compare_digest en vez de == porque una comparación a secas filtra información
-    de tiempo, que es justo el tipo de detalle que marca una revisión de código.
-    Sin BRIDGE_TOKEN la comprobación se salta, para este laboratorio interno.
+    compare_digest en vez de == porque una comparación a secas filtra información de
+    tiempo. Sin BRIDGE_TOKEN la comprobación se salta, para este laboratorio interno.
     """
     if not ajuste.BRIDGE_TOKEN:
         return True

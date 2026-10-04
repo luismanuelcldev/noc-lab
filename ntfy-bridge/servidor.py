@@ -1,8 +1,8 @@
 """La superficie HTTP del puente: tres endpoints y sus codigos de estado.
 
-Solo transporte. Que hacer con un lote se decide en webhook.py, asi que cada
-rama aqui es o "enrutalo" o "responde con un codigo que haga que Alertmanager
-se comporte bien", y las dos se prueban sin arrancar un servidor.
+Solo transporte. Que hacer con un lote se decide en webhook.py, asi que cada rama aqui
+es o "enrutalo" o "responde con un codigo que haga que Alertmanager se comporte bien",
+y las dos se prueban sin arrancar un servidor.
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ LOG = logging.getLogger("ntfy-bridge")
 class Handler(BaseHTTPRequestHandler):
     """Enruta los endpoints y convierte los resultados en etiquetas de metrica.
 
-    Cada rama registra exactamente un resultado de peticion, porque el panel y
-    la alerta CanalNotificacionCaido leen esos contadores: una peticion que no
-    se cuenta ni como ok ni como rejected es un punto ciego que nadie notaria.
+    Cada rama registra exactamente un resultado de peticion, porque el panel y la
+    alerta CanalNotificacionCaido leen esos contadores: una peticion sin contar es
+    un punto ciego que nadie notaria.
     """
 
     server_version = "ntfy-bridge/2.0"
@@ -33,8 +33,8 @@ class Handler(BaseHTTPRequestHandler):
     def reply(self, code: int, body: str, content_type: str = "application/json") -> None:
         """Envia una respuesta completa con Content-Length explicito.
 
-        La longitud es obligatoria: con HTTP/1.1 y keep-alive, una respuesta
-        sin ella hace que el cliente espere un cuerpo que no llega nunca.
+        La longitud es obligatoria: con HTTP/1.1 y keep-alive, sin ella el cliente espera
+        un cuerpo que no llega nunca.
         """
         raw = body.encode("utf-8")
         self.send_response(code)
@@ -59,9 +59,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         """Acepta un lote de Alertmanager y lo reenvia a ntfy.
 
-        Los codigos de estado sostienen peso, no son decoracion: 502 es lo que
-        hace que Alertmanager reintente el grupo, y 413/400 lo detienen de
-        reintentar una peticion que nunca puede funcionar.
+        Los codigos de estado sostienen peso, no son decoracion: 502 es lo que hace
+        que Alertmanager reintente el grupo, y 413/400 lo detienen de reintentar una
+        peticion que nunca puede funcionar.
         """
         if self.path.split("?")[0] != "/webhook":
             METRICS.record_request("rejected")
@@ -73,8 +73,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(401, json.dumps({"error": "no autorizado"}))
             return
 
-        # Un cuerpo sobredimensionado no se lee en absoluto: leerlo dejaria a
-        # un emisor decidir cuanto reserva el proceso.
+        # Un cuerpo sobredimensionado no se lee en absoluto: leerlo dejaria a un emisor
+        # decidir cuanto reserva el proceso.
         length = int(self.headers.get("Content-Length") or 0)
         cuerpo = self.rfile.read(length) if length <= ajuste.MAX_BODY_BYTES else b""
         carga, error = leer(cuerpo)

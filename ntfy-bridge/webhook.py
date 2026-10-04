@@ -1,8 +1,7 @@
 """Qué hace el puente con un lote entrante que ya ha sido validado.
 
-Aquí no hay HTTP: las comprobaciones previas viven en validacion.py y el
-transporte en servidor.py, así que el camino feliz y sus fallos se prueban sin
-arrancar un servidor.
+Aquí no hay HTTP: las comprobaciones previas viven en validacion.py y el transporte en
+servidor.py, así que el camino feliz y sus fallos se prueban sin arrancar un servidor.
 """
 
 from __future__ import annotations
@@ -21,14 +20,13 @@ METRICS = Metrics()
 def procesar(carga: dict) -> tuple[int, str, dict]:
     """Reenvía un lote a ntfy. Devuelve (estado, etiqueta de métrica, cuerpo).
 
-    La etiqueta se devuelve en vez de registrarse aquí para que el transporte sea
-    lo único que toca los contadores, y así una petición no puede quedarse sin
-    contar ni contarse dos veces.
+    La etiqueta se devuelve en vez de registrarse aquí para que solo el transporte toque
+    los contadores, y una petición no pueda quedarse sin contar ni contarse dos veces.
     """
     count = len(carga.get("alerts") or [])
     if count == 0:
-        # No es un error: Alertmanager manda un lote vacío cuando todo se
-        # resuelve, y responder rápido evita reintentos inútiles.
+        # No es un error: Alertmanager manda un lote vacío cuando todo se resuelve, y
+        # responder rápido evita reintentos inútiles.
         return 200, "ok", {"delivered": 0, "detail": "lote vacío"}
 
     METRICS.record_alerts(count)
@@ -48,8 +46,8 @@ def procesar(carga: dict) -> tuple[int, str, dict]:
                 "duration_s": round(duration, 4),
             },
         )
-    # 502 es lo que hace que Alertmanager reintente el grupo, así que un ntfy
-    # muerto no puede tragarse el incidente en silencio.
+    # 502 es lo que hace que Alertmanager reintente el grupo: un ntfy muerto no puede
+    # tragarse el incidente en silencio.
     return (
         502,
         "error",

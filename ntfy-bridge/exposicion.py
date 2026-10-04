@@ -1,11 +1,11 @@
 """Los contadores del puente en formato de exposicion de Prometheus.
 
-Separado de metrics.py porque esto es solo generacion de texto: la clase que
-lleva los numeros no necesita saber como se escribe una muestra, y este modulo
-se puede leer solo para ver todas las series que publica el servicio y por que.
+Separado de metrics.py porque esto es solo generacion de texto: la clase que lleva los
+numeros no necesita saber como se escribe una muestra, y aqui se ven de un vistazo
+todas las series que publica el servicio y por que.
 
-Cada muestra lleva su # HELP y su # TYPE. No es decoracion: sin el tipo,
-rate() se comporta mal y el panel enseña numeros equivocados sin quejarse.
+Cada muestra lleva su # HELP y su # TYPE. No es decoracion: sin el tipo, rate() se
+comporta mal y el panel enseña numeros equivocados sin quejarse.
 """
 
 from __future__ import annotations

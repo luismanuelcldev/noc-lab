@@ -9,10 +9,9 @@ Decisiones que salen de como se lee una alerta de noche:
 * Gana el texto ya formateado: si las plantillas de Alertmanager nos dieron
   prosa, la configuracion manda en el texto y este modulo no lo reescribe.
 
-El cuerpo lo dibuja cuerpo.py, y los tokens RESOLVED, ACTIVE y CRITICAL se
-quedan en ingles a proposito: el smoke test los busca con una expresion regular
-y, en un telefono de guardia, un RESOLVED se distingue de un ACTIVE de un
-vistazo.
+El cuerpo lo dibuja cuerpo.py. Los tokens RESOLVED, ACTIVE y CRITICAL se quedan
+en ingles a proposito: el smoke test los busca con una expresion regular y, en un
+telefono de guardia, un RESOLVED se distingue de un ACTIVE de un vistazo.
 """
 
 from __future__ import annotations

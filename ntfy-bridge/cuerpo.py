@@ -4,15 +4,11 @@ Decisiones que salen de como se lee una alerta de noche:
 
 * Una notificacion por grupo, no por alerta: si un despliegue tumba 40 pods, el
   operador quiere un mensaje con 40 lineas, no 40 vibraciones.
-* Los enlaces viajan dentro del cuerpo, porque una notificacion de movil no
-  tiene botones y el operador no deberia tener que ir a buscar el panel.
-* El cuerpo tiene tope, y el tope anuncia el numero exacto de alertas que se
-  dejan fuera. Cortar en silencio dejaria cerrar el incidente al operador
-  habiendo leido 8 de 40.
-
-Los rotulos se alinean con ljust y no con espacios a mano, porque alinear a mano
-fue el bug que arrastraba este par de ficheros: un rotulo un caracter mas largo
-desplaza su dos puntos y no se nota hasta que alguien lo lee de noche.
+* Los enlaces viajan dentro del cuerpo: una notificacion de movil no tiene botones.
+* El cuerpo tiene tope, y el tope anuncia el numero exacto de alertas que se dejan
+  fuera. Cortar en silencio dejaria cerrar el incidente habiendo leido 8 de 40.
+* Los rotulos se alinean con ljust y no a mano: un rotulo un caracter mas largo
+  desplaza su dos puntos y no se nota hasta que alguien lo lee de noche.
 """
 
 from __future__ import annotations
@@ -61,20 +57,14 @@ def _aviso(mostradas: int, total: int) -> str:
 
 
 def compose_body(alerts: list[dict], resolved: bool) -> str:
-    """Montar el cuerpo del mensaje, recortando solo si no cabe en el canal.
-
-    El recorte anuncia el numero exacto de alertas que se pierden. Cortar en
-    silencio dejaria al operador cerrar el incidente habiendo leido 8 de 40.
-    """
+    """Montar el cuerpo del mensaje, recortando solo si no cabe en el canal."""
     header = f"{'RESOLVED' if resolved else 'ACTIVE'} | {len(alerts)} alerta(s)"
     blocks = [describe(a) for a in alerts]
-    # La reserva se mide con el aviso de verdad y no con un 90 a ojo. En espanol
-    # el aviso es mas largo que en ingles, y una constante que no se recalcula
-    # sola deja el cuerpo dos caracteres por encima del tope sin que se note.
+    # La reserva se mide con el aviso de verdad y no con un 90 a ojo: el aviso es mas
+    # largo en espanol, y una constante sin recalcular deja el cuerpo por encima del tope.
     cifras = len(str(max(len(blocks), 1)))
     reserva = len(_aviso(int("9" * cifras), int("9" * cifras)))
-    # Los dos saltos de linea entre cabecera, separador y bloques tambien cuentan,
-    # y antes no se contaban: el 90 a ojo traia de sobra justo lo que faltaba.
+    # Los dos saltos de linea entre cabecera, separador y bloques tambien cuentan.
     esqueleto = len(header) + len(ajuste.SEPARATOR) + 2
     budget = ajuste.MAX_MESSAGE_CHARS - esqueleto - reserva
     shown, used = [], 0
@@ -86,9 +76,8 @@ def compose_body(alerts: list[dict], resolved: bool) -> str:
     body = header + "\n" + ajuste.SEPARATOR + "\n" + "\n\n".join(shown or blocks[:1])
     if len(shown) < len(blocks):
         body += _aviso(len(shown), len(blocks))
-    # Ultimo recurso: un emoji puede contar como un caracter y dibujarse como
-    # dos, asi que el tope duro sigue aplicando. El limite del canal no se negocia.
-    # El corte va a cap - 3 porque los puntos son parte del cuerpo: con cap - 1 el
-    # resultado podia acabar en cap + 2, y ntfy contesta 400 a un cuerpo de mas.
+    # Ultimo recurso: un emoji puede contar como un caracter y dibujarse como dos, asi
+    # que el tope duro sigue aplicando. El corte va a cap - 3 porque los puntos son
+    # parte del cuerpo: con cap - 1 acababa en cap + 2 y ntfy contestaba 400.
     cap = ajuste.MAX_MESSAGE_CHARS
     return body if len(body) <= cap else body[: cap - 3].rstrip() + "..."

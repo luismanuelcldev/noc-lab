@@ -52,10 +52,9 @@ class MetricsTest(unittest.TestCase):
         self.assertIn("ntfy_bridge_alerts_received_total 5", m.render())
 
     def test_every_declared_family_also_declares_its_type(self) -> None:
-        # Sin # TYPE, rate() se comporta mal y el panel enseña cifras
-        # equivocadas sin quejarse. Las muestras que comparten familia (la misma
-        # métrica con otro conjunto de etiquetas) se emiten bajo un único par
-        # HELP/TYPE, así que el invariante es por familia, no por línea.
+        # Sin # TYPE, rate() se comporta mal y el panel enseña cifras equivocadas sin
+        # quejarse. Las muestras de una familia comparten un par HELP/TYPE, así que
+        # el invariante es por familia, no por línea.
         m = Metrics()
         m.record_request("ok")
         m.record_delivery(True, 1, 0.5)

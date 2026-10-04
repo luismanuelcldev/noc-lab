@@ -11,9 +11,8 @@ ENV PYTHONUNBUFFERED=1 \
 RUN adduser -S -u 1001 -H -s /sbin/nologin bridge
 
 WORKDIR /app
-# Los diez modulos de produccion, ordenados para que la lista se pueda revisar
-# contra el arbol. utiles.py se queda fuera a proposito: solo lo usan las
-# pruebas, y ningun modulo de produccion lo importa.
+# Los diez modulos de produccion, ordenados para poder revisar la lista contra el
+# arbol. utiles.py se queda fuera a proposito: solo lo usan las pruebas.
 COPY --chown=root:root app.py ajuste.py cuerpo.py entrega.py exposicion.py \
      formato.py metrics.py servidor.py validacion.py webhook.py ./
 
