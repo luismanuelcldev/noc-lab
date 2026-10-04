@@ -5,8 +5,8 @@
 #  UI:        http://localhost:9093
 #  Razonamiento de cada decision: docs/ALERTMANAGER.md
 #
-#  Sin ${VAR} a proposito: Alertmanager no expande variables de entorno, asi
-#  que "${BRIDGE_TOKEN}" seria esa cadena literal; lo inyecta el entrypoint.
+#  Sin ${VAR} a proposito: Alertmanager no expande variables de entorno, asi que
+#  "${BRIDGE_TOKEN}" seria esa cadena literal; lo inyecta el entrypoint.
 # ===========================================================================
 
 global:
@@ -14,8 +14,8 @@ global:
   http_config:
     follow_redirects: true
 
-# Gana la PRIMERA coincidencia: el orden es el diseño, e info va primero para
-# que LatidoDeMonitorizacion nunca pagee a una persona.
+# Gana la PRIMERA coincidencia: el orden es el diseno, e info va primero para que
+# LatidoDeMonitorizacion nunca pagee a una persona.
 route:
   receiver: "bandeja-noc"            # debe existir siempre
   # alertname Y service: dos criticas en servicios distintos no colapsan.
@@ -46,10 +46,10 @@ route:
       continue: true
 
 inhibit_rules:
-  # 1. Un host caido silencia las alertas de infraestructura de ese host.
-  #    equal es ["job"], NO ["instance"]: absent() devuelve una serie con solo
-  #    {job="node"}, asi que con ["instance"] no coincidiria nunca, y una regla
-  #    que no inhibe nada es peor que ninguna. Detalle en docs/ALERTMANAGER.md.
+  # 1. Un host caido silencia las alertas de infraestructura de ese host. `equal`
+  #    es ["job"] y NO ["instance"]: absent() devuelve una serie con solo {job="node"},
+  #    asi que con ["instance"] no coincidiria nunca, y una regla que no inhibe nada
+  #    es peor que ninguna. Detalle en docs/ALERTMANAGER.md.
   - source_matchers: [alertname = "TargetHostCaido"]
     target_matchers: [service = "host"]
     equal: ["job"]
@@ -69,8 +69,8 @@ inhibit_rules:
     target_matchers: [alertname =~ "PuertoTCPInaccesible|TiempoDeRespuestaAlto"]
     equal: ["service", "instance"]
 
-# Sin plantillas propias: nunca se aplican a un webhook, y "payload" reemplaza
-# el cuerpo entero. El formato lo pone el bridge; el Authorization, el entrypoint.
+# Sin plantillas propias: nunca se aplican a un webhook y "payload" reemplaza el
+# cuerpo entero. El formato lo pone el bridge; el Authorization, el entrypoint.
 receivers:
   - name: "bandeja-noc"              # receptor decatch-all
     webhook_configs:

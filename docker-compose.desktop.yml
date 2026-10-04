@@ -4,27 +4,20 @@
 #     docker compose -f docker-compose.yml -f docker-compose.desktop.yml up -d
 #     make up-desktop
 #
-# node-exporter monta la raiz del host con propagacion "rslave":
+# Lo unico que cambia es la propagacion de montajes de node-exporter. En Linux la
+# raiz del host se monta con "rslave", para que los discos que aparezcan mas tarde
+# se propagen al contenedor en lugar de dejar un arbol congelado en el arranque.
+# Docker Desktop no puede: su VM de Linux no es un montaje compartido y el demonio
+# aborta el contenedor con "path / is mounted on / but it is not a shared or slave
+# mount". No hay opcion para propagar.
 #
-#     - /:/host/root:ro,rslave
-#
-# Esa es la opcion correcta en Linux: los montajes que aparecen mas tarde en el
-# host (un disco nuevo, digamos) se propagan al contenedor, de modo que
-# node-exporter no ve un arbol de ficheros congelado en el arranque. Docker
-# Desktop no puede hacerlo, porque su VM de Linux no es un montage compartido, y
-# el demonio aborta el contenedor con:
-#
-#     path / is mounted on / but it is not a shared or slave mount
-#
-# Docker Desktop no tiene opcion para propagar montajes del host, asi que aqui no
-# hay forma de conservar rslave. Lo que se pierde, y por que lo acepto en un
-# laboratorio: en Docker Desktop "/" dentro del contenedor es el sistema de
-# ficheros de la VM, no Windows ni macOS, asi que las metricas de disco, memoria y
-# CPU describen la VM; y sin rslave, los montajes que aparecen despues del
-# arranque no se propagan. En un servidor Linux, cambiar discos en caliente hace
-# que ese segundo punto importe, y por eso el fichero de la raiz conserva
-# rslave. Un despliegue real vigila el nodo con node-exporter instalado en el
-# host o como agente, no dentro de Docker Desktop; ver docs/INSTALL.md.
+# Lo que se pierde, y por que lo acepto en un laboratorio: dentro del contenedor "/"
+# es el sistema de ficheros de la VM, no Windows ni macOS, asi que las metricas de
+# disco, memoria y CPU describen la VM; y sin rslave, los montajes posteriores al
+# arranque no se propagan. En un servidor Linux el segundo punto importa al cambiar
+# discos en caliente, y por eso el fichero de la raiz conserva rslave. Un despliegue
+# real vigila el nodo con node-exporter en el host, no dentro de Docker Desktop; ver
+# docs/INSTALL.md y el limite que anota docs/PROJECT.md.
 
 services:
 

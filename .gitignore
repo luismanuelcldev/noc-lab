@@ -1,18 +1,21 @@
 # --- SECRETOS ----------------------------------------------------------------
-# .env NUNCA se versiona. Solo .env.example, y solo con valores de ejemplo,
-# nunca credenciales reales.
+# .env NUNCA se versiona: solo .env.example, y solo con valores de ejemplo.
 .env
 .env.*
 !.env.example
 
-# Cualquier configuracion local que pudiera guardar credenciales, IPs internas,
-# nombres de equipo o tokens de la institucion.
+# Configuracion local que pudiera guardar credenciales, IPs internas o tokens.
 config/local/
 *.local.yml
 *.local.yaml
 *.secret.yml
 *.override.yml
 *.override.yaml
+
+# Prometheus lo genera al arrancar con las external labels ya sustituidas: lleva los
+# nombres del monitor y del entorno. Lo escribe el entrypoint dentro del contenedor,
+# pero el procedimiento manual de docs/OPERATIONS.md lo deja en la raiz.
+prometheus.rendered.yml
 
 # Claves privadas, certificados y material criptografico
 *.pem
@@ -31,8 +34,7 @@ id_ed25519*
 .vault/
 
 # --- DATOS EN EJECUCION DEL STACK (no versionar) -----------------------------
-# Instantes del TSDB, silencios de Alertmanager, datos de Grafana y de ntfy. Son
-# datos de operacion y pueden contener informacion de la institucion.
+# Instantes del TSDB, silencios, datos de Grafana y de ntfy: pueden contener informacion institucional.
 /data/
 /backup/
 /grafana-data/
@@ -41,8 +43,8 @@ id_ed25519*
 /ntfy-data/
 
 # --- COPIAS Y EXPORTACIONES --------------------------------------------------
-# Una copia de Grafana o Alertmanager puede contener usuarios, dashboards con
-# nombres de sistemas internos y silencios en vigor.
+# Una copia de Grafana o Alertmanager puede contener usuarios, dashboards con nombres
+# de sistemas internos y silencios en vigor.
 /backups/*
 !/backups/.gitkeep
 *.tar.gz
@@ -73,9 +75,7 @@ htmlcov/
 dist/
 build/
 
-# --- CONTENEDORES -------------------------------------------------------------
-# El contexto de compilacion del puente puede contener artefactos, o el propio
-# .env, si se copia el directorio entero sin un .dockerignore.
+# --- CONTENEDORES (artefactos y el propio .env, si se copia el arbol entero) ---
 /docker-build-cache/
 
 # --- EDITORES Y SISTEMA OPERATIVO -------------------------------------------
