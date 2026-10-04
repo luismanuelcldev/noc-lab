@@ -6,17 +6,15 @@
 
 scrape_configs:
   - job_name: "node"
-    scrape_interval: 30s            # el host cambia despacio: 15s es de sobra
+    # 30s y no menos: el host cambia despacio y 15s seria de sobra.
+    scrape_interval: 30s
     static_configs:
       - targets: ["node-exporter:9100"]
         labels:
           component: "host"
     metric_relabel_configs:
-        # Control de cardinalidad: descartar series de mucho volumen y poco valor
-        # (una muestra por byte, contadores en crudo). En produccion esto es una
-        # exigencia, no un detalle de ajuste, porque el TSDB se factura y se
-        # degrada por numero de series, y un exportador sin filtrar las puede
-        # multiplicar por diez.
+      # Control de cardinalidad: el TSDB se degrada por numero de series y ademas se
+      # factura por ellas, y un exportador sin filtrar las multiplica por diez.
       - source_labels: [__name__]
         regex: "node_(cgroup|meminfo|vmstat)_.*"   # detalle de Linux de poco valor para un NOC
         action: "drop"
