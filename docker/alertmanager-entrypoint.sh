@@ -1,18 +1,15 @@
 #!/bin/sh
-# Inyecta el token de autenticacion de Alertmanager y arranca Alertmanager. El
-# razonamiento completo, con las tres opciones descartadas, en docs/ALERTMANAGER.md.
+# Inyecta el token de autenticacion de Alertmanager y arrancarlo; el razonamiento
+# completo, con las tres opciones descartadas, en docs/ALERTMANAGER.md.
 #
-# El puente exige "Authorization: Bearer <token>" en /webhook, y Alertmanager no puede
-# enviarlo: no expande variables de entorno en su configuracion, asi que
-# "credentials: ${BRIDGE_TOKEN}" enviaria esa cadena literal. Un BRIDGE_TOKEN vacio deja
-# en cambio un endpoint que acepta cualquier cosa desde cualquier contenedor de esa red,
-# y un token escrito a mano mete un secreto en el repo. Esta es la tercera via: el token
-# llega como variable de entorno y acaba en una copia en memoria al arrancar.
+# El puente exige "Authorization: Bearer <token>" y Alertmanager no puede enviarlo:
+# no expande variables, "${BRIDGE_TOKEN}" llegaria literal, vacio dejaria el endpoint
+# abierto a toda la red, y escrito a mano meteria un secreto en el repo. El token
+# llega por entorno y acaba en memoria.
 #
 # El render cae en /tmp porque CONTIENE el token: /etc/alertmanager sale en "docker
-# diff" porque es la capa del contenedor, y /tmp es un tmpfs. Un token mal formado o una
-# configuracion rechazada paran el script a proposito: un Alertmanager muerto es obvio y
-# uno con la cabecera rota es un fallo mudo.
+# diff" por ser capa del contenedor y /tmp es un tmpfs. Un token mal formado o una
+# configuracion rechazada paran el script: uno con la cabecera rota es un fallo mudo.
 
 set -eu
 
@@ -53,9 +50,9 @@ else
     log "inyectando la autorizacion Bearer en los webhooks que apuntan al puente"
 
     # awk y no sed: inserta varias lineas de una vez sin depender de las diferencias
-    # de sed al escapar saltos de linea en un patron. Solo los webhooks cuya URL apunta
-    # al puente reciben la cabecera, de modo que un receiver nuevo no recibe un token
-    # que nunca pidio, y el bloque END avisa si el patron dejara de casar con nada.
+    # de sed al escapar saltos de linea. Solo los webhooks cuya URL apunta al puente
+    # reciben la cabecera, para que un receiver nuevo no reciba un token que nunca
+    # pidio, y el bloque END avisa si el patron dejara de casar con nada.
     awk -v token="${TOKEN}" '
         { print }
         /- url: "http:\/\/ntfy-bridge/ {
@@ -74,8 +71,8 @@ else
 
     chmod 600 "${DST}"
 
-    # Confirma que la inyeccion ha entrado. El fichero se queda en el tmpfs y un reinicio
-    # vuelve a renderizar desde el origen, sin token.
+    # Confirma que la inyeccion ha entrado. El fichero se queda en el tmpfs y un
+    # reinicio vuelve a renderizar desde el origen, sin token.
     rendered_hits=$(grep -c "credentials:" "${DST}" || true)
     if [ "${rendered_hits}" -eq 0 ]; then
         log "ERROR: no se ha podido inyectar la cabecera de autorizacion."

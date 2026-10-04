@@ -1,8 +1,6 @@
-# ===========================================================================
-#  Integracion continua. Los pasos detallan que ejecuta `make ci` en vez de llamar a
-#  make: si la CI llamara a make, un error de sintaxis en el Makefile seria un fallo de
-#  CI mezclado con un fallo de codigo real. Ninguno necesita el stack en marcha.
-# ===========================================================================
+# CI. Detalla los pasos de `make ci` en vez de llamar a make: si la CI llamara a make,
+# un error de sintaxis del Makefile seria un fallo de CI mezclado con un fallo real.
+# Ninguno de los pasos necesita el stack en marcha.
 name: ci
 
 on:
@@ -24,8 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    # Solo por la sintaxis del compose, que exige la variable con ${VAR:?mensaje}. La
-    # necesita igual scripts/check.py, que tambien ejecuta `docker compose config`.
+    # Solo por la sintaxis del compose, que exige ${VAR:?mensaje} y lo necesita igual
+    # scripts/check.py, que tambien ejecuta `docker compose config`.
     env:
       GF_SECURITY_ADMIN_PASSWORD: checking-only-not-a-secret
 
@@ -43,7 +41,7 @@ jobs:
           python-version: "3.13"
 
       # El puente solo usa biblioteca estandar, asi que no hay nada que instalar. ruff
-      # queda fijado a la version del hook de pre-commit: el check y el local son el mismo.
+      # queda fijado a la version del hook de pre-commit: el check y el local coinciden.
       - name: Instalar ruff
         run: pip install ruff==0.8.4
 
@@ -79,8 +77,9 @@ jobs:
       - name: Formato
         run: ruff format --check .
 
-      # Van al final a proposito: si el analisis estatico falla, no tiene sentido continuar.
-      # --strict convierte todo aviso en fallo: el unico posible es un panel vacio fuera de la lista.
+      # Al final a proposito: si el analisis estatico falla, no tiene sentido continuar, y
+      # --strict convierte todo aviso en fallo: el unico posible es un panel vacio fuera
+      # de la lista.
       - name: Validadores del repositorio
         run: python scripts/check.py --strict
 

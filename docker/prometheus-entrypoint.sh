@@ -1,20 +1,17 @@
 #!/bin/sh
 # Generar prometheus.yml y arrancar Prometheus.
 #
-# Prometheus no expande variables de entorno en su fichero de configuracion: una
-# linea "monitor: ${NOC_MONITOR_NAME}" se carga tal cual, con la etiqueta dentro.
-# Tampoco hay ninguna bandera para cambiarlo, --web.external-url es otra cosa, asi
-# que unas external labels parametrizadas obligan a generar el fichero antes de
-# arrancar.
+# Prometheus no expande variables de entorno en su configuracion y no hay bandera
+# que lo haga (--web.external-url es otra cosa), asi que unas external labels
+# parametrizadas obligan a renderizar el fichero antes de arrancar.
 #
-# El fichero viene montado en solo lectura, asi que la generacion ocurre en
-# /etc/prometheus y no en /tmp: rule_files usa rutas relativas que Prometheus
-# resuelve contra el directorio de configuracion, y una generacion en /tmp
-# arrancaria sin reglas y sin ningun aviso.
+# El render cae en /etc/prometheus y no en /tmp porque rule_files usa rutas relativas
+# al directorio de configuracion: generado en /tmp, Prometheus arrancaria sin reglas y
+# sin ningun aviso. El origen viene montado en solo lectura.
 #
-# Fallar es mejor que arrancar mal. Una variable que falta, un valor invalido o un
-# "${" sin sustituir sale con 1 y Prometheus no arranca, porque la alternativa es
-# dos entornos que se diferencian por la etiqueta equivocada.
+# Fallar es mejor que arrancar mal: una variable que falta, un valor invalido o un
+# "${" sin sustituir sale con 1, porque la alternativa es dos entornos que se
+# diferencian por la etiqueta equivocada.
 
 set -eu
 
@@ -24,8 +21,7 @@ DST="/etc/prometheus/prometheus.rendered.yml"
 log() { echo "[render-config] $*" >&2; }
 
 # Solo letras, digitos, punto, guion y guion bajo: cualquier otra cosa puede romper
-# el YAML o la sustitucion de sed, que es como un valor entrecomillado acaba
-# corrompiendo el fichero.
+# el YAML o la sustitucion de sed, que es como un valor entrecomillado corrompe el fichero.
 validate() {
     name="$1"
     value="$2"
@@ -57,8 +53,8 @@ if [ ! -f "${SRC}" ]; then
     exit 1
 fi
 
-# Se trabaja sobre una copia: ${SRC} es de solo lectura. "|" es el delimitador de
-# sed y los valores de arriba no pueden contenerlo, asi que la sustitucion es segura.
+# Se trabaja sobre una copia porque el origen es de solo lectura. "|" es el delimitador
+# de sed y los valores de arriba no pueden contenerlo, asi que la sustitucion es segura.
 cp "${SRC}" "${DST}"
 chmod 644 "${DST}"
 sed -i \
@@ -66,10 +62,9 @@ sed -i \
     -e "s|\${NOC_ENVIRONMENT}|${NOC_ENVIRONMENT}|g" \
     "${DST}"
 
-# Esta comprobacion es la que convierte un fallo silencioso en uno visible. Las
-# lineas de comentario se saltan a proposito: documentar que el fichero lleva
-# marcadores es legitimo, y un grep ingenuo sobre todo el fichero haria fallar cada
-# arranque.
+# Esta comprobacion es la que convierte un fallo silencioso en uno visible. Las lineas
+# de comentario se saltan a proposito: documentar que el fichero lleva marcadores es
+# legitimo, y un grep ingenuo sobre todo el fichero haria fallar cada arranque.
 if grep -v '^[[:space:]]*#' "${DST}" | grep -q '\${'; then
     log "ERROR: quedan variables sin sustituir en el fichero generado:"
     grep -n '\${' "${DST}" | grep -v ':[[:space:]]*#' >&2 || true

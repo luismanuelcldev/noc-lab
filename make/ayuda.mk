@@ -1,12 +1,9 @@
 # `make` sin argumentos.
 #
-# Atajos de todo lo que hago mas de una vez mientras trabajo en el laboratorio,
-# para que el comando que tengo que recordar sea corto y la forma correcta de
-# hacerlo quede escrita en un unico sitio.
-#
-# `make` no viene con Windows. Cada target es un atajo de `docker compose` o de
-# un script de Python, asi que se pueden copiar a mano sin perdida. En Linux y
-# macOS, instalar make.
+# Atajos de todo lo que hago mas de una vez, para que el comando que tengo que recordar
+# sea corto y la forma correcta de hacerlo quede escrita en un unico sitio. `make` no
+# viene con Windows, pero cada target es un atajo de `docker compose` o de un script de
+# Python, asi que se pueden copiar a mano sin perdida. En Linux y macOS, instalar make.
 
 .DEFAULT_GOAL := help
 
